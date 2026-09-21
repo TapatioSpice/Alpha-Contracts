@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 import pandas as pd
 from pathlib import Path
@@ -47,17 +46,11 @@ st.markdown(
 BASE_DIR = Path(__file__).resolve().parent
 REQUIRED_COLUMNS = ["Community", "Series", "Scar.Date", "Plan", "Work Type", "Amount"]
 
-# Customs document library.
-# Current synced OneDrive location on Alejandro's work computer.
-# Streamlit Community Cloud cannot directly see a local C:\ drive, so this
-# works for local testing now and is ready to be connected to SharePoint later.
-DEFAULT_CUSTOMS_ROOT = Path(
-    r"C:\Users\alejandroe\OneDrive - alphalandscapeslv.com\CONTRACTS"
+CUSTOMS_SHARED_URL = (
+    "https://alphalandscapeslv-my.sharepoint.com/:f:/p/alejandroe/"
+    "IgBa5H5bojr_RbSnca96B7jBAXd6w3we7jNXd95fW_HzRZs?e=LQGdPQ"
 )
-CUSTOMS_SUPPORTED_EXTENSIONS = {
-    ".pdf", ".xlsx", ".xls", ".docx", ".doc", ".csv", ".txt",
-    ".jpg", ".jpeg", ".png"
-}
+
 
 BUILDER_ORDER = [
     "Pulte",
@@ -298,200 +291,6 @@ def sort_display_values(values):
 
 
 
-def customs_root():
-    """Return the configured Customs document root for local testing."""
-    secret_value = None
-    try:
-        secret_value = st.secrets.get("CUSTOMS_ROOT")
-    except Exception:
-        secret_value = None
-
-    configured = secret_value or os.getenv("CUSTOMS_ROOT") or str(DEFAULT_CUSTOMS_ROOT)
-    return Path(str(configured)).expanduser()
-
-
-@st.cache_data(ttl=300, show_spinner=False)
-def build_customs_index(root_text):
-    """Scan the existing customer-folder structure into a searchable index."""
-    root = Path(root_text)
-    columns = [
-        "Client", "Category", "File Name", "File Type",
-        "Modified", "Relative Path", "Full Path"
-    ]
-
-    if not root.exists() or not root.is_dir():
-        return pd.DataFrame(columns=columns)
-
-    records = []
-
-    for file_path in root.rglob("*"):
-        if not file_path.is_file():
-            continue
-
-        if file_path.suffix.lower() not in CUSTOMS_SUPPORTED_EXTENSIONS:
-            continue
-
-        try:
-            relative = file_path.relative_to(root)
-        except ValueError:
-            continue
-
-        parts = relative.parts
-        if not parts:
-            continue
-
-        client = parts[0]
-        category = parts[1] if len(parts) >= 3 else "Other"
-
-        try:
-            modified = pd.Timestamp(file_path.stat().st_mtime, unit="s")
-        except OSError:
-            modified = pd.NaT
-
-        records.append(
-            {
-                "Client": client,
-                "Category": category,
-                "File Name": file_path.name,
-                "File Type": file_path.suffix.lower().lstrip(".").upper() or "FILE",
-                "Modified": modified,
-                "Relative Path": str(relative),
-                "Full Path": str(file_path),
-            }
-        )
-
-    if not records:
-        return pd.DataFrame(columns=columns)
-
-    data = pd.DataFrame(records)
-    data["Client"] = data["Client"].astype(str).str.strip()
-    data["Category"] = data["Category"].astype(str).str.strip()
-    data["File Name"] = data["File Name"].astype(str).str.strip()
-
-    return data.sort_values(
-        by=["Client", "Category", "File Name"],
-        key=lambda s: s.astype(str).str.lower(),
-        kind="stable",
-    ).reset_index(drop=True)
-
-
-def show_customs_documents():
-    if st.button("← Contracts", key="back_home_customs"):
-        go_to_page("home")
-
-    st.markdown(
-        """
-        <div class="contracts-hero">
-            <div class="section-kicker">Customs</div>
-            <h1>Customs Documents</h1>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    root = customs_root()
-    data = build_customs_index(str(root))
-
-    if not root.exists():
-        st.warning(
-            "The Customs library is ready, but this online app cannot see the "
-            "OneDrive folder on your desktop yet."
-        )
-        st.caption("Current folder: " + str(root))
-        return
-
-    if data.empty:
-        st.info("No supported files were found in the Customs folder.")
-        return
-
-    search_text = st.text_input(
-        "Search",
-        placeholder="Customer, proposal, payment schedule, file name...",
-        key="customs_search",
-    ).strip()
-
-    filter_row = st.columns(2, gap="large")
-
-    clients = ["All Customers"] + sort_display_values(data["Client"].dropna().unique())
-    with filter_row[0]:
-        selected_client = st.selectbox("Customer", clients, key="customs_client")
-
-    categories = ["All Categories"] + sort_display_values(data["Category"].dropna().unique())
-    with filter_row[1]:
-        selected_category = st.selectbox("Category", categories, key="customs_category")
-
-    filtered = data.copy()
-
-    if selected_client != "All Customers":
-        filtered = filtered[filtered["Client"] == selected_client]
-
-    if selected_category != "All Categories":
-        filtered = filtered[filtered["Category"] == selected_category]
-
-    if search_text:
-        needle = search_text.lower()
-        haystack = (
-            filtered["Client"].astype(str)
-            + " "
-            + filtered["Category"].astype(str)
-            + " "
-            + filtered["File Name"].astype(str)
-            + " "
-            + filtered["Relative Path"].astype(str)
-        ).str.lower()
-        filtered = filtered[haystack.str.contains(needle, regex=False)]
-
-    st.caption(f"{len(filtered):,} file(s) found")
-
-    if filtered.empty:
-        st.info("No files matched your search.")
-        return
-
-    display = filtered[
-        ["Client", "Category", "File Name", "File Type", "Modified"]
-    ].copy()
-    display["Modified"] = (
-        pd.to_datetime(display["Modified"], errors="coerce")
-        .dt.strftime("%m/%d/%Y %I:%M %p")
-    )
-
-    st.dataframe(
-        display,
-        hide_index=True,
-        use_container_width=True,
-        height=min(560, 38 * (len(display) + 1)),
-    )
-
-    option_map = {}
-    for idx, row in filtered.iterrows():
-        label = f'{row["Client"]}  ›  {row["Category"]}  ›  {row["File Name"]}'
-        if label in option_map:
-            label = f"{label}  ({idx + 1})"
-        option_map[label] = row["Full Path"]
-
-    selected_label = st.selectbox(
-        "Select a file",
-        list(option_map.keys()),
-        key="customs_selected_file",
-    )
-
-    selected_path = Path(option_map[selected_label])
-    if selected_path.exists():
-        try:
-            st.download_button(
-                "Open / Download File",
-                data=selected_path.read_bytes(),
-                file_name=selected_path.name,
-                mime="application/octet-stream",
-                type="primary",
-                use_container_width=True,
-                key="customs_download",
-            )
-        except OSError as exc:
-            st.error(f"Unable to read this file: {exc}")
-
-
-
 def go_to_page(page_name):
     st.session_state["contracts_page"] = page_name
     st.rerun()
@@ -566,6 +365,28 @@ def render_contract_browser(data, key_prefix):
             hide_index=True,
             use_container_width=True,
         )
+
+
+def show_customs_documents():
+    if st.button("← Contracts", key="back_home_customs"):
+        go_to_page("home")
+
+    st.markdown(
+        """
+        <div class="contracts-hero">
+            <div class="section-kicker">Customs</div>
+            <h1>Customs Documents</h1>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.link_button(
+        "Open Customs Documents",
+        CUSTOMS_SHARED_URL,
+        type="primary",
+        use_container_width=True,
+    )
 
 
 def show_contracts_home():
