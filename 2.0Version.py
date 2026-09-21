@@ -1,3 +1,4 @@
+import json
 import streamlit as st
 import pandas as pd
 from pathlib import Path
@@ -50,6 +51,27 @@ CUSTOMS_SHARED_URL = (
     "https://alphalandscapeslv-my.sharepoint.com/:f:/p/alejandroe/"
     "IgBl0A5r1SFsTrHGb8XcYPOnAYLGQ-S3cihnTjd1c-dNwDI?e=jKYv23"
 )
+
+MAINTENANCE_SHARED_URL = (
+    "https://alphalandscapeslv-my.sharepoint.com/:f:/p/alejandroe/"
+    "IgCfnlzeFH4lQYHCdShYOVTEATgE7ucG-oAw_QGeVECOLhw?e=e4piss"
+)
+MAINTENANCE_REPO = "Maintenance-Recurring"
+
+MONTH_NUMBER = {
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+}
 
 
 BUILDER_ORDER = [
@@ -291,6 +313,150 @@ def sort_display_values(values):
 
 
 
+
+def github_api_request(url):
+    """Read JSON from GitHub, using the optional existing token when available."""
+    headers = {
+        "User-Agent": "Alpha-Contracts-Streamlit",
+        "Accept": "application/vnd.github+json",
+    }
+    token = github_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    request = Request(url, headers=headers)
+    with urlopen(request, timeout=20) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def maintenance_file_sort_key(item):
+    """Sort monthly recurring files chronologically by month name."""
+    name = str(item.get("name", "")).lower()
+    month = 0
+    for month_name, month_number in MONTH_NUMBER.items():
+        if month_name in name:
+            month = month_number
+            break
+
+    # If a year is included in a future filename, use it.
+    year = pd.Timestamp.today().year
+    for token in name.replace("-", " ").replace("_", " ").split():
+        if token.isdigit() and len(token) == 4 and token.startswith("20"):
+            year = int(token)
+            break
+
+    return (year, month, name)
+
+
+@st.cache_data(ttl=300)
+def list_maintenance_workbooks():
+    """List recurring-maintenance Excel files directly from GitHub."""
+    errors = []
+
+    for branch in CONTRACT_BRANCHES:
+        url = (
+            f"https://api.github.com/repos/{GITHUB_OWNER}/"
+            f"{MAINTENANCE_REPO}/contents?ref={branch}"
+        )
+        try:
+            items = github_api_request(url)
+            if not isinstance(items, list):
+                continue
+
+            files = [
+                item
+                for item in items
+                if str(item.get("name", "")).lower().endswith((".xlsx", ".xls"))
+                and "recurring" in str(item.get("name", "")).lower()
+                and item.get("download_url")
+            ]
+
+            files.sort(key=maintenance_file_sort_key, reverse=True)
+            if files:
+                return files
+        except Exception as exc:
+            errors.append(f"{branch}: {exc}")
+
+    raise FileNotFoundError(
+        f"Could not find recurring workbooks in {GITHUB_OWNER}/{MAINTENANCE_REPO}. "
+        + " | ".join(errors)
+    )
+
+
+@st.cache_data(ttl=300)
+def load_maintenance_workbook(download_url, filename):
+    """Download and clean one monthly recurring-maintenance workbook."""
+    headers = {"User-Agent": "Alpha-Contracts-Streamlit"}
+    token = github_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    request = Request(download_url, headers=headers)
+    with urlopen(request, timeout=25) as response:
+        workbook_bytes = BytesIO(response.read())
+
+    raw = pd.read_excel(workbook_bytes, header=None)
+
+    header_row = None
+    for idx in range(min(len(raw), 15)):
+        first_value = str(raw.iloc[idx, 0]).strip().lower()
+        if first_value == "client name":
+            header_row = idx
+            break
+
+    if header_row is None:
+        raise ValueError(f"Could not find the 'Client name' header in {filename}.")
+
+    records = []
+    source_total = None
+
+    for idx in range(header_row + 1, len(raw)):
+        row = raw.iloc[idx]
+
+        client = row.iloc[0] if len(row) > 0 else None
+        property_name = row.iloc[1] if len(row) > 1 else None
+        frequency = row.iloc[2] if len(row) > 2 else None
+        amount = row.iloc[3] if len(row) > 3 else None
+        note = row.iloc[4] if len(row) > 4 else None
+
+        frequency_text = "" if pd.isna(frequency) else str(frequency).strip()
+        client_text = "" if pd.isna(client) else str(client).strip()
+
+        if frequency_text.lower() == "total":
+            source_total = pd.to_numeric(amount, errors="coerce")
+            break
+
+        if not client_text:
+            continue
+
+        numeric_amount = pd.to_numeric(amount, errors="coerce")
+        if pd.isna(numeric_amount):
+            continue
+
+        records.append(
+            {
+                "Client": client_text,
+                "Property": "" if pd.isna(property_name) else str(property_name).strip(),
+                "Frequency": frequency_text,
+                "Monthly Amount": float(numeric_amount),
+                "Note": "" if pd.isna(note) else str(note).strip(),
+            }
+        )
+
+    data = pd.DataFrame(records)
+    if data.empty:
+        return data, 0.0, source_total
+
+    calculated_total = float(data["Monthly Amount"].sum())
+    return data, calculated_total, source_total
+
+
+def maintenance_month_label(filename):
+    name = Path(filename).stem
+    return name.replace("_", " ").strip()
+
+
+
 def go_to_page(page_name):
     st.session_state["contracts_page"] = page_name
     st.rerun()
@@ -367,6 +533,189 @@ def render_contract_browser(data, key_prefix):
         )
 
 
+
+def show_maintenance_home():
+    if st.button("← Contracts", key="back_home_maintenance"):
+        go_to_page("home")
+
+    st.markdown(
+        """
+        <div class="contracts-hero">
+            <div class="section-kicker">Maintenance</div>
+            <h1>Maintenance</h1>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Most important / most-used option first and full width.
+    if st.button(
+        "Expected Monthly Revenue",
+        type="primary",
+        key="open_maintenance_revenue",
+        use_container_width=True,
+    ):
+        go_to_page("maintenance_revenue")
+
+    st.markdown('<div class="builder-spacer"></div>', unsafe_allow_html=True)
+
+    st.link_button(
+        "Maintenance Contracts",
+        MAINTENANCE_SHARED_URL,
+        use_container_width=True,
+    )
+
+
+def show_maintenance_revenue():
+    if st.button("← Maintenance", key="back_maintenance_revenue"):
+        go_to_page("maintenance_home")
+
+    left, right = st.columns([4, 1])
+    with right:
+        if st.button(
+            "Refresh Data",
+            key="refresh_maintenance_revenue",
+            use_container_width=True,
+        ):
+            st.cache_data.clear()
+            st.rerun()
+
+    st.markdown(
+        """
+        <div class="contracts-hero">
+            <div class="section-kicker">Maintenance</div>
+            <h1>Expected Monthly Revenue</h1>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    try:
+        files = list_maintenance_workbooks()
+    except Exception as exc:
+        st.error(
+            f"Unable to load monthly files from {GITHUB_OWNER}/{MAINTENANCE_REPO}."
+        )
+        st.code(str(exc))
+        return
+
+    if not files:
+        st.info("No recurring maintenance workbooks were found.")
+        return
+
+    labels = [maintenance_month_label(item["name"]) for item in files]
+    file_by_label = {maintenance_month_label(item["name"]): item for item in files}
+
+    selected_label = st.selectbox(
+        "Month",
+        labels,
+        index=0,
+        key="maintenance_month",
+    )
+    selected_file = file_by_label[selected_label]
+
+    try:
+        data, calculated_total, source_total = load_maintenance_workbook(
+            selected_file["download_url"],
+            selected_file["name"],
+        )
+    except Exception as exc:
+        st.error(f"Unable to read {selected_file['name']}.")
+        st.code(str(exc))
+        return
+
+    if data.empty:
+        st.info("No active recurring revenue lines were found in this workbook.")
+        return
+
+    metric_cols = st.columns([1.4, 1, 1], gap="large")
+    with metric_cols[0]:
+        st.metric("Expected Revenue", f"${calculated_total:,.0f}")
+    with metric_cols[1]:
+        st.metric("Recurring Lines", f"{len(data):,}")
+    with metric_cols[2]:
+        st.metric(
+            "Average / Line",
+            f"${(calculated_total / len(data)):,.0f}" if len(data) else "$0",
+        )
+
+    if source_total is not None and not pd.isna(source_total):
+        if abs(float(source_total) - calculated_total) > 0.01:
+            st.warning(
+                f"The workbook total is ${float(source_total):,.2f}, while the "
+                f"active-line calculation is ${calculated_total:,.2f}."
+            )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    search_col, sort_col = st.columns([2.3, 1], gap="large")
+    with search_col:
+        search_text = st.text_input(
+            "Search Client",
+            placeholder="Type a client name...",
+            key="maintenance_client_search",
+        ).strip()
+
+    with sort_col:
+        sort_choice = st.selectbox(
+            "Sort",
+            ["Client A-Z", "Amount High → Low", "Amount Low → High"],
+            key="maintenance_sort",
+        )
+
+    filtered = data.copy()
+
+    if search_text:
+        needle = search_text.lower()
+        filtered = filtered[
+            filtered["Client"].str.lower().str.contains(needle, regex=False, na=False)
+            | filtered["Property"].str.lower().str.contains(needle, regex=False, na=False)
+        ]
+
+    if sort_choice == "Amount High → Low":
+        filtered = filtered.sort_values(
+            ["Monthly Amount", "Client"],
+            ascending=[False, True],
+            kind="stable",
+        )
+    elif sort_choice == "Amount Low → High":
+        filtered = filtered.sort_values(
+            ["Monthly Amount", "Client"],
+            ascending=[True, True],
+            kind="stable",
+        )
+    else:
+        filtered = filtered.sort_values(
+            "Client",
+            key=lambda s: s.str.lower(),
+            kind="stable",
+        )
+
+    st.caption(f"{len(filtered):,} result(s)")
+
+    display = filtered[["Client", "Monthly Amount", "Frequency"]].copy()
+
+    st.dataframe(
+        display,
+        hide_index=True,
+        use_container_width=True,
+        height=min(650, max(190, 37 * (len(display) + 1))),
+        column_config={
+            "Client": st.column_config.TextColumn("Client", width="large"),
+            "Monthly Amount": st.column_config.NumberColumn(
+                "Expected Revenue",
+                format="$%.2f",
+            ),
+            "Frequency": st.column_config.TextColumn("Frequency", width="large"),
+        },
+    )
+
+    st.caption(
+        f"Source: {selected_file['name']} • "
+        f"{GITHUB_OWNER}/{MAINTENANCE_REPO}"
+    )
+
+
 def show_customs_documents():
     if st.button("← Contracts", key="back_home_customs"):
         go_to_page("home")
@@ -400,14 +749,21 @@ def show_contracts_home():
         unsafe_allow_html=True,
     )
 
-    outer = st.columns([0.65, 1, 1, 1, 0.65], gap="large")
-    with outer[1]:
+    row1 = st.columns([0.8, 1.4, 1.4, 0.8], gap="large")
+    with row1[1]:
         if st.button("Production", type="primary", key="open_production", use_container_width=True):
             go_to_page("production_builders")
-    with outer[2]:
+    with row1[2]:
         if st.button("Concrete", key="open_concrete", use_container_width=True):
             go_to_page("concrete_builders")
-    with outer[3]:
+
+    st.markdown('<div class="builder-spacer"></div>', unsafe_allow_html=True)
+
+    row2 = st.columns([0.8, 1.4, 1.4, 0.8], gap="large")
+    with row2[1]:
+        if st.button("Maintenance", key="open_maintenance", use_container_width=True):
+            go_to_page("maintenance_home")
+    with row2[2]:
         if st.button("Customs", key="open_customs", use_container_width=True):
             go_to_page("customs_documents")
 
@@ -553,6 +909,10 @@ elif page == "production_builders":
     show_builder_home("production")
 elif page == "concrete_builders":
     show_builder_home("concrete")
+elif page == "maintenance_home":
+    show_maintenance_home()
+elif page == "maintenance_revenue":
+    show_maintenance_revenue()
 elif page == "customs_documents":
     show_customs_documents()
 else:
