@@ -121,6 +121,14 @@ ARCHIVED_COMMUNITIES = {
         "Paldona@Buffalo",
         "Paldona@WarmSprings",
         "RC.Estates",
+        "Hayford@Polaris",
+        "Daylight@Cameron",
+        "Liberty",
+        "Liberty.CT.8",
+        "Luxury@Russell",
+        "Luxury@Warm Springs",
+        "Incline",
+        "Cordora",
     },
     ("Pulte", "concrete"): set(),
     ("Woodside", "production"): set(),
@@ -462,6 +470,19 @@ def go_to_page(page_name):
     st.rerun()
 
 
+
+DMT_CONTRACT_DATE_NOTES = {
+    ("Hayford", "01/05/2026"): "Based off DMT submittal",
+    ("Evercrest at Ironstone", "08/31/2026"): "Based off DMT submittal",
+}
+
+
+def contract_date_note(community, value):
+    date_text = pd.Timestamp(value).strftime("%m/%d/%Y")
+    return DMT_CONTRACT_DATE_NOTES.get((str(community), date_text))
+
+
+
 def render_contract_browser(data, key_prefix):
     if data.empty:
         st.info("No contracts loaded.")
@@ -499,7 +520,9 @@ def render_contract_browser(data, key_prefix):
         def date_label(value):
             current = pd.Timestamp(value).normalize()
             label = current.strftime("%m/%d/%Y")
-            return f"{label} — Current / Newest" if current == newest_date else f"{label} — Historical"
+            status = "Current / Newest" if current == newest_date else "Historical"
+            note = contract_date_note(selected_community, current)
+            return f"{label} — {status} • {note}" if note else f"{label} — {status}"
 
         selected_scar_date = st.selectbox(
             "3. Select Scar / Contract Effective Date",
