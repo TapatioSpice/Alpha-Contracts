@@ -245,6 +245,26 @@ def load_builder_data(builder_name):
     data = data.dropna(
         subset=["Community", "Series", "Scar.Date", "Plan", "Work Type", "Amount"]
     )
+
+    # Ironstone DMT submittal plan-name safeguard.
+    # This also fixes display if Streamlit briefly reads an older cached copy
+    # of PulteContracts1.xlsx that still says "DMT Plan 1/2/3".
+    if builder_name == "Pulte":
+        ironstone_mask = (
+            data["Community"].eq("Evercrest at Ironstone")
+            & data["Series"].astype(str).str.strip().eq("5500")
+            & data["Scar.Date"].dt.normalize().eq(pd.Timestamp("2026-08-31"))
+        )
+        ironstone_plan_names = {
+            "DMT Plan 1": "5526-7 - Genoa",
+            "DMT Plan 2": "5527-7 - Catalina",
+            "DMT Plan 3": "5528-7 - Cesena",
+        }
+        data.loc[ironstone_mask, "Plan"] = (
+            data.loc[ironstone_mask, "Plan"]
+            .replace(ironstone_plan_names)
+        )
+
     return data
 
 
