@@ -99,6 +99,7 @@ BUILDER_FILES = {
     "Woodside": "WoodsideContracts1.xlsx",
     "Richmond": "RichmondContracts1.xlsx",
     "Taylor Morrison": "TaylorMorrisonContracts1.xlsx",
+    "Century Communities": "CenturyCommunitiesContracts1.xlsx",
     "KB Homes": "KBHomesContracts1.xlsx",
 }
 
@@ -296,7 +297,26 @@ def work_type_priority(value):
     if value == "Foundation": return 0
     if value.startswith("Foundation-"): return 1
     if value.startswith("FND-"): return 2
-    if value == "Haul Off": return 10
+
+    # Century Communities patio-cover rows are CONCRETE options.
+    if value.startswith("CP"):
+        return 3
+
+    # Union Village / similar concrete drop-garage pricing.
+    drop_order = {
+        'Drop Garage 7"-12"': 10,
+        'Cut Pad 7"-12"': 11,
+        'Haul Off 7"-12"': 12,
+        'Drop Garage 13"-18"': 13,
+        'Cut Pad 13"-18"': 14,
+        'Haul Off 13"-18"': 15,
+        'Drop Garage 19"-24"': 16,
+        'Cut Pad 19"-24"': 17,
+        'Haul Off 19"-24"': 18,
+    }
+    if value in drop_order:
+        return drop_order[value]
+    if value == "Haul Off": return 19
     if value == "RG": return 20
     if value.startswith("RG-"): return 21
     if value == "RG2": return 22
