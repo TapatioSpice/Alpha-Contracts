@@ -46,6 +46,7 @@ st.markdown(
 
 BASE_DIR = Path(__file__).resolve().parent
 REQUIRED_COLUMNS = ["Community", "Series", "Scar.Date", "Plan", "Work Type", "Amount"]
+NOTE_COLUMN = "Note"
 
 CUSTOMS_SHARED_URL = (
     "https://alphalandscapeslv-my.sharepoint.com/:f:/p/alejandroe/"
@@ -243,7 +244,14 @@ def load_contract_workbook(filename, builder_name=""):
         st.error("The contract file is missing required column(s): " + ", ".join(missing))
         st.stop()
 
-    data = data[REQUIRED_COLUMNS].copy()
+    # Optional "Note" column (e.g. "Price reduced from contract approved by Tony").
+    # It is shown next to the contract date and above the pricing table.
+    has_note = NOTE_COLUMN in data.columns
+    data = data[REQUIRED_COLUMNS + ([NOTE_COLUMN] if has_note else [])].copy()
+    if has_note:
+        data[NOTE_COLUMN] = data[NOTE_COLUMN].fillna("").astype(str).str.strip()
+    else:
+        data[NOTE_COLUMN] = ""
 
     for column in ["Community", "Plan", "Work Type"]:
         data[column] = data[column].astype(str).str.strip()
@@ -531,6 +539,17 @@ DMT_CONTRACT_DATE_NOTES = {
 }
 
 
+def workbook_notes(rows):
+    """Unique non-blank notes from the workbook's optional Note column."""
+    if NOTE_COLUMN not in rows.columns:
+        return []
+    notes = []
+    for note in rows[NOTE_COLUMN].dropna().astype(str).str.strip():
+        if note and note.lower() != "nan" and note not in notes:
+            notes.append(note)
+    return notes
+
+
 def contract_date_note(community, value):
     date_text = pd.Timestamp(value).strftime("%m/%d/%Y")
     return DMT_CONTRACT_DATE_NOTES.get((str(community), date_text))
@@ -575,8 +594,10 @@ def render_contract_browser(data, key_prefix):
             current = pd.Timestamp(value).normalize()
             label = current.strftime("%m/%d/%Y")
             status = "Current / Newest" if current == newest_date else "Historical"
-            note = contract_date_note(selected_community, current)
-            return f"{label} — {status} • {note}" if note else f"{label} — {status}"
+            notes = [contract_date_note(selected_community, current)]
+            notes += workbook_notes(date_data[date_data["Scar.Date"].dt.normalize() == current])
+            notes = [note for note in notes if note]
+            return f"{label} — {status} • {' • '.join(notes)}" if notes else f"{label} — {status}"
 
         selected_scar_date = st.selectbox(
             "3. Select Scar / Contract Effective Date",
@@ -603,6 +624,8 @@ def render_contract_browser(data, key_prefix):
 
         date_text = pd.Timestamp(selected_scar_date).strftime("%m/%d/%Y")
         st.subheader(f"{selected_community} — {selected_series} — {date_text}")
+        for note in workbook_notes(selected):
+            st.info(note)
         st.dataframe(
             build_contract_table(selected),
             hide_index=True,
