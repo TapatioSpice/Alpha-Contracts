@@ -83,6 +83,7 @@ BUILDER_ORDER = [
     "Century Communities",
     "KB Homes",
     "Tri Pointe of Nevada",
+    "Other Builders",
 ]
 
 BUILDER_SLUGS = {
@@ -93,6 +94,7 @@ BUILDER_SLUGS = {
     "Century Communities": "century_communities",
     "KB Homes": "kb_homes",
     "Tri Pointe of Nevada": "tri_pointe",
+    "Other Builders": "other_builders",
 }
 
 BUILDER_FILES = {
@@ -102,6 +104,9 @@ BUILDER_FILES = {
     "Taylor Morrison": "TaylorMorrisonContracts1.xlsx",
     "Century Communities": "CenturyCommunitiesContracts1.xlsx",
     "KB Homes": "KBHomesContracts1.xlsx",
+    "Tri Pointe of Nevada": "TriPointeContracts1.xlsx",
+    # AMH Development, Blue Heron, Pinnacle Homes, ... (Community = "Builder - Community")
+    "Other Builders": "OtherBuildersContracts1.xlsx",
 }
 
 ACTIVE_BUILDERS = set(BUILDER_FILES)
@@ -137,7 +142,11 @@ ARCHIVED_COMMUNITIES = {
         "Cordora",
     },
     ("Pulte", "concrete"): set(),
-    ("Woodside", "production"): set(),
+    ("Woodside", "production"): {
+        # Only warranty work on SupplyPro in 2026.
+        "Estrella at Sunstone",
+        "Luna at Sunstone",
+    },
     ("Woodside", "concrete"): set(),
 }
 
@@ -937,8 +946,9 @@ def show_builder_home(division):
     with row2[2]: builder_button("KB Homes", division)
 
     st.markdown('<div class="builder-spacer"></div>', unsafe_allow_html=True)
-    row3 = st.columns([1, 1, 1], gap="large")
+    row3 = st.columns([0.5, 1, 1, 0.5], gap="large")
     with row3[1]: builder_button("Tri Pointe of Nevada", division)
+    with row3[2]: builder_button("Other Builders", division)
 
 
 def show_builder_contracts(builder_name, division):
