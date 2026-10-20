@@ -105,6 +105,10 @@ BUILDER_FILES = {
 
 ACTIVE_BUILDERS = set(BUILDER_FILES)
 
+# One shared workbook for patio-cover / pergola (Alumawood) pricing from every
+# builder. Community names are "Builder - Community" (e.g. "KB - Caspian Bay 35s").
+PERGOLAS_FILE = "PergolasContracts1.xlsx"
+
 ARCHIVED_COMMUNITIES = {
     ("Pulte", "production"): {
         "Aldervista",
@@ -207,7 +211,11 @@ def download_contract_file(filename):
 
 @st.cache_data(ttl=300)
 def load_builder_data(builder_name):
-    filename = BUILDER_FILES[builder_name]
+    return load_contract_workbook(BUILDER_FILES[builder_name], builder_name)
+
+
+@st.cache_data(ttl=300)
+def load_contract_workbook(filename, builder_name=""):
 
     # Local file first (useful when testing on your computer).
     local_path = next((path for path in contract_file_candidates(filename) if path.exists()), None)
@@ -320,12 +328,18 @@ def work_type_priority(value):
     if value == "RG": return 20
     if value.startswith("RG-"): return 21
     if value == "RG2": return 22
+    # Century Communities unit-price codes (Rough Grade / Final Grade /
+    # Irrigation / Landscaping) so they read in job order.
+    if value.startswith("GR0000"): return 23
     if value == "FG2": return 30
     if value == "FG": return 31
+    if value.startswith("GF0000"): return 32
     if value == "LS": return 40
     if value == "Landscape": return 40
     if value.startswith("LSO-"): return 41
-    if value == "Pavers": return 50
+    if value.startswith("LI0000"): return 42
+    if value.startswith("LL"): return 43
+    if value in ("Pavers", "PV"): return 50
     if value.startswith("Pavers-"): return 51
     if value.startswith("PVO-"): return 52
     return 100
@@ -830,6 +844,37 @@ def show_contracts_home():
         if st.button("Customs", key="open_customs", use_container_width=True):
             go_to_page("customs_documents")
 
+    st.markdown('<div class="builder-spacer"></div>', unsafe_allow_html=True)
+
+    row3 = st.columns([1.5, 1.4, 1.5], gap="large")
+    with row3[1]:
+        if st.button("Patios & Pergolas", key="open_pergolas", use_container_width=True):
+            go_to_page("pergolas")
+
+
+def show_pergolas():
+    left, right = st.columns([4, 1])
+    with left:
+        if st.button("← Contracts", key="back_home_pergolas"):
+            go_to_page("home")
+    with right:
+        if st.button("Refresh Data", key="refresh_pergolas", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+    st.markdown(
+        """
+        <div class="contracts-hero">
+            <div class="section-kicker">All Builders</div>
+            <h1>Patios &amp; Pergolas</h1>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    data = load_contract_workbook(PERGOLAS_FILE, "Pergolas")
+    render_contract_browser(data, "pergolas")
+
 
 def builder_button(builder_name, division, button_type="secondary"):
     slug = BUILDER_SLUGS[builder_name]
@@ -978,6 +1023,8 @@ elif page == "maintenance_revenue":
     show_maintenance_revenue()
 elif page == "customs_documents":
     show_customs_documents()
+elif page == "pergolas":
+    show_pergolas()
 else:
     handled = False
     for division in ("production", "concrete"):
