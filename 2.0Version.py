@@ -48,6 +48,12 @@ BASE_DIR = Path(__file__).resolve().parent
 REQUIRED_COLUMNS = ["Community", "Series", "Scar.Date", "Plan", "Work Type", "Amount"]
 NOTE_COLUMN = "Note"
 
+CONTRACTS_SHARED_URL = (
+    "https://alphalandscapeslv-my.sharepoint.com/:f:/p/alejandroe/"
+    "IgBa5H5bojr_RbSnca96B7jBAUpkCrpcHsdISsNM7eXFoyU?e=JWc08Z"
+)
+CONTRACT_FOLDERS_FILE = "contract_folders.json"
+
 CUSTOMS_SHARED_URL = (
     "https://alphalandscapeslv-my.sharepoint.com/:f:/p/alejandroe/"
     "IgBl0A5r1SFsTrHGb8XcYPOnAYLGQ-S3cihnTjd1c-dNwDI?e=jKYv23"
@@ -565,9 +571,49 @@ def contract_date_note(community, value):
 
 
 
-def render_contract_browser(data, key_prefix):
+@st.cache_data(ttl=300)
+def load_contract_folders():
+    """Map of 'Builder|Community' -> OneDrive folder holding that community's contract PDFs.
+
+    Lives in Contract-Files as contract_folders.json so it can be edited without
+    touching this code. Missing or unreadable file = just show the main folder link.
+    """
+    try:
+        local_path = next(
+            (path for path in contract_file_candidates(CONTRACT_FOLDERS_FILE) if path.exists()),
+            None,
+        )
+        if local_path is not None:
+            return json.loads(local_path.read_text(encoding="utf-8"))
+        remote_file, _ = download_contract_file(CONTRACT_FOLDERS_FILE)
+        return json.loads(remote_file.read().decode("utf-8"))
+    except Exception:
+        return {}
+
+
+def render_contract_pdf_link(builder_name, community, key):
+    """Button to the shared OneDrive CONTRACTS folder plus where to click for this community."""
+    config = load_contract_folders()
+    entry = config.get("folders", {}).get(f"{builder_name}|{community}", {})
+    url = entry.get("url") or config.get("shared_folder_url") or CONTRACTS_SHARED_URL
+    path = entry.get("path")
+
+    cols = st.columns([1.4, 3])
+    with cols[0]:
+        st.link_button("📄 Contract PDFs", url, use_container_width=True)
+    with cols[1]:
+        if path and not entry.get("url"):
+            crumbs = " › ".join(["CONTRACTS"] + path.split("/"))
+            st.caption(f"Open the folder, then go to: **{crumbs}** › Contract")
+        elif not path:
+            st.caption("Opens the shared CONTRACTS folder (Division › Builder › Community › Contract).")
+
+
+def render_contract_browser(data, key_prefix, builder_name=""):
     if data.empty:
         st.info("No contracts loaded.")
+        if builder_name:
+            render_contract_pdf_link(builder_name, "", f"{key_prefix}_pdfs")
         return
 
     communities = sort_display_values(data["Community"].dropna().unique())
@@ -615,6 +661,9 @@ def render_contract_browser(data, key_prefix):
             format_func=date_label,
             key=f"{key_prefix}_scar_date",
         )
+
+    if builder_name:
+        render_contract_pdf_link(builder_name, selected_community, f"{key_prefix}_pdfs")
 
     if st.button("Create Table", type="primary", key=f"{key_prefix}_create"):
         if selected_scar_date is None:
@@ -905,7 +954,7 @@ def show_pergolas():
     )
 
     data = load_contract_workbook(PERGOLAS_FILE, "Pergolas")
-    render_contract_browser(data, "pergolas")
+    render_contract_browser(data, "pergolas", "Pergolas")
 
 
 def builder_button(builder_name, division, button_type="secondary"):
@@ -983,7 +1032,7 @@ def show_builder_contracts(builder_name, division):
             st.warning("Missing concrete communities: " + ", ".join(sorted(missing)))
 
     active_data = get_division_data(all_data, builder_name, division, archived=False)
-    render_contract_browser(active_data, f"{slug}_{division}_active")
+    render_contract_browser(active_data, f"{slug}_{division}_active", builder_name)
 
     archive_set = ARCHIVED_COMMUNITIES.get((builder_name, division), set())
     if archive_set:
@@ -1018,7 +1067,7 @@ def show_builder_archived(builder_name, division):
 
     data = load_builder_data(builder_name)
     archived = get_division_data(data, builder_name, division, archived=True)
-    render_contract_browser(archived, f"{slug}_{division}_archived")
+    render_contract_browser(archived, f"{slug}_{division}_archived", builder_name)
 
 
 def show_builder_placeholder(division, builder_name):
