@@ -73,12 +73,16 @@ st.markdown(
         .builder-count { text-align: center; opacity: 0.7; font-size: 0.9rem; margin: 0.25rem 0 1rem 0; }
         [class*="st-key-grid_"] div[data-testid="stButton"] > button p { font-size: 1.3rem; font-weight: 750; }
 
-        /* Back buttons look like links */
-        [class*="st-key-back"] button {
-            background: transparent !important; border: none !important; box-shadow: none !important;
-            min-height: auto !important; padding: 0.2rem 0 !important; color: #2E7D32 !important; font-weight: 600;
+        /* Back / Home buttons: big and easy to spot */
+        [class*="st-key-back"] button, [class*="st-key-homebtn"] button {
+            min-height: 3rem !important; padding: 0.3rem 1.4rem !important; border-radius: 999px !important;
+            background: rgba(46,125,50,0.10) !important; border: 2px solid #2E7D32 !important;
+            color: #2E7D32 !important; box-shadow: none !important;
         }
-        [class*="st-key-back"] button:hover { text-decoration: underline; }
+        [class*="st-key-back"] button p, [class*="st-key-homebtn"] button p { font-size: 1.1rem; font-weight: 700; }
+        [class*="st-key-back"] button:hover, [class*="st-key-homebtn"] button:hover {
+            background: #2E7D32 !important; color: #fff !important;
+        }
         [class*="st-key-refresh"] button { min-height: 2.3rem !important; font-size: 0.85rem; color: #4b5563; }
 
         /* Search box on home page */
@@ -613,8 +617,15 @@ def maintenance_month_label(filename):
 
 
 
-def go_to_page(page_name):
+def set_page(page_name):
+    """Remember the page in the web address (?page=...) so the browser's
+    back / forward arrows move between app pages instead of leaving the app."""
     st.session_state["contracts_page"] = page_name
+    st.query_params["page"] = page_name
+
+
+def go_to_page(page_name):
+    set_page(page_name)
     st.rerun()
 
 
@@ -782,7 +793,7 @@ def render_contract_browser(data, key_prefix, builder_name=""):
 
 
 def show_maintenance_home():
-    if st.button("← Contracts", key="back_home_maintenance"):
+    if st.button("⬅  Back to Home", key="back_home_maintenance"):
         go_to_page("home")
 
     st.markdown(
@@ -814,7 +825,7 @@ def show_maintenance_home():
 
 
 def show_maintenance_revenue():
-    if st.button("← Maintenance", key="back_maintenance_revenue"):
+    if st.button("⬅  Back to Maintenance", key="back_maintenance_revenue"):
         go_to_page("maintenance_home")
 
     left, right = st.columns([4, 1])
@@ -964,7 +975,7 @@ def show_maintenance_revenue():
 
 
 def show_customs_documents():
-    if st.button("← Contracts", key="back_home_customs"):
+    if st.button("⬅  Back to Home", key="back_home_customs"):
         go_to_page("home")
 
     st.markdown(
@@ -1080,7 +1091,7 @@ def jump_to_search_result(match):
     st.session_state.pop(f"{prefix}_series", None)
     st.session_state.pop(f"{prefix}_scar_date", None)
     st.session_state["home_q"] = ""
-    st.session_state["contracts_page"] = page
+    set_page(page)
 
 
 def show_contracts_home():
@@ -1141,7 +1152,7 @@ def show_contracts_home():
 def show_pergolas():
     left, right = st.columns([4, 1])
     with left:
-        if st.button("← Contracts", key="back_home_pergolas"):
+        if st.button("⬅  Back to Home", key="back_home_pergolas"):
             go_to_page("home")
     with right:
         if st.button("Refresh Data", key="refresh_pergolas", use_container_width=True):
@@ -1175,7 +1186,7 @@ def builder_button(builder_name, division, button_type="secondary"):
 
 def show_builder_home(division):
     label = "Concrete" if division == "concrete" else "Production"
-    if st.button("← Contracts", key=f"back_home_{division}"):
+    if st.button("⬅  Back to Home", key=f"back_home_{division}"):
         go_to_page("home")
 
     st.markdown(
@@ -1219,10 +1230,13 @@ def show_builder_contracts(builder_name, division):
     label = "Concrete" if division == "concrete" else "Production"
     slug = BUILDER_SLUGS[builder_name]
 
-    left, right = st.columns([4, 1])
+    left, mid, right = st.columns([1.6, 2.4, 1])
     with left:
-        if st.button(f"← {label} Builders", key=f"back_{division}_{slug}"):
+        if st.button(f"⬅  Back to {label}", key=f"back_{division}_{slug}", use_container_width=True):
             go_to_page(f"{division}_builders")
+    with mid:
+        if st.button("🏠  Home", key=f"homebtn_{division}_{slug}"):
+            go_to_page("home")
     with right:
         if st.button("Refresh Data", key=f"refresh_{division}_{slug}", use_container_width=True):
             st.cache_data.clear()
@@ -1267,8 +1281,13 @@ def show_builder_archived(builder_name, division):
     label = "Concrete" if division == "concrete" else "Production"
     slug = BUILDER_SLUGS[builder_name]
 
-    if st.button(f"← {builder_name} {label}", key=f"back_archive_{division}_{slug}"):
-        go_to_page(f"{division}_{slug}")
+    left, right = st.columns([2.2, 3.8])
+    with left:
+        if st.button(f"⬅  Back to {builder_name} {label}", key=f"back_archive_{division}_{slug}", use_container_width=True):
+            go_to_page(f"{division}_{slug}")
+    with right:
+        if st.button("🏠  Home", key=f"homebtn_archive_{division}_{slug}"):
+            go_to_page("home")
 
     st.markdown(
         f"""
@@ -1288,7 +1307,7 @@ def show_builder_archived(builder_name, division):
 def show_builder_placeholder(division, builder_name):
     label = "Concrete" if division == "concrete" else "Production"
     slug = BUILDER_SLUGS[builder_name]
-    if st.button(f"← {label} Builders", key=f"back_placeholder_{division}_{slug}"):
+    if st.button(f"⬅  Back to {label}", key=f"back_placeholder_{division}_{slug}"):
         go_to_page(f"{division}_builders")
 
     st.markdown(
@@ -1303,10 +1322,10 @@ def show_builder_placeholder(division, builder_name):
     st.info("No contracts loaded.")
 
 
-if "contracts_page" not in st.session_state:
-    st.session_state["contracts_page"] = "home"
-
-page = st.session_state["contracts_page"]
+# The web address is the source of truth for which page is showing, so the
+# browser back arrow works. No ?page= in the address means the home page.
+page = st.query_params.get("page") or "home"
+st.session_state["contracts_page"] = page
 
 if page == "home":
     show_contracts_home()
