@@ -26,11 +26,12 @@ st.markdown(
         }
         /* Page banner */
         .contracts-hero {
-            border-radius: 16px; padding: 1.4rem 1.8rem; margin: 0.4rem 0 1.6rem 0;
+            border-radius: 16px; padding: 1.1rem 1.6rem; margin: 0.4rem 0 1.4rem 0;
             color: #fff; background: linear-gradient(120deg, var(--home), var(--home2));
             box-shadow: 0 6px 18px rgba(0,0,0,0.12);
         }
-        .contracts-hero h1 { color: #fff !important; margin: 0; padding: 0; font-size: 2rem; }
+        .contracts-hero h1 { color: #fff !important; margin: 0; padding: 0; font-size: 1.65rem; }
+        .hero-center { text-align: center; }
         .contracts-hero p { color: rgba(255,255,255,0.9); margin: 0.35rem 0 0 0; }
         .section-kicker {
             color: rgba(255,255,255,0.85); text-transform: uppercase; letter-spacing: 0.14em;
@@ -47,29 +48,30 @@ st.markdown(
 
         /* Home page division tiles */
         [class*="st-key-tile_"] button {
-            min-height: 6.2rem; font-size: 1.25rem; background: #fff; color: #1f2937;
-            border: 1px solid #e5e7eb; border-top-width: 7px; border-radius: 14px;
+            min-height: 8.5rem !important; background: rgba(128,128,128,0.07); color: inherit;
+            border: 1px solid rgba(128,128,128,0.28); border-top-width: 8px; border-radius: 16px;
             box-shadow: 0 3px 10px rgba(0,0,0,0.07); transition: transform .12s, box-shadow .12s;
         }
-        [class*="st-key-tile_"] button:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.13); color: #111827; }
-        [class*="st-key-tile_"] button p { font-size: 1.2rem; font-weight: 700; }
+        [class*="st-key-tile_"] button:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.18); color: inherit; }
+        [class*="st-key-tile_"] button p { font-size: 1.6rem; font-weight: 750; }
         .st-key-tile_production button  { border-top-color: var(--prod); }
         .st-key-tile_concrete button    { border-top-color: var(--conc); }
         .st-key-tile_maintenance button { border-top-color: var(--maint); }
         .st-key-tile_customs button     { border-top-color: var(--cust); }
         .st-key-tile_pergolas button    { border-top-color: var(--perg); }
-        .tile-note { text-align: center; color: #6b7280; font-size: 0.85rem; margin: -0.4rem 0 1.1rem 0; }
+        .tile-note { text-align: center; opacity: 0.7; font-size: 0.95rem; margin: -0.3rem 0 1.3rem 0; }
 
         /* Builder buttons: coloured edge per division */
         [class*="st-key-grid_"] div[data-testid="stButton"] > button {
-            background: #fff; color: #1f2937; border: 1px solid #e5e7eb; border-left-width: 7px;
+            min-height: 4.4rem !important; background: rgba(128,128,128,0.07); color: inherit;
+            border: 1px solid rgba(128,128,128,0.28); border-left-width: 8px; border-radius: 12px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.06);
         }
-        [class*="st-key-grid_"] div[data-testid="stButton"] > button:hover { box-shadow: 0 6px 14px rgba(0,0,0,0.12); color: #111827; }
+        [class*="st-key-grid_"] div[data-testid="stButton"] > button:hover { box-shadow: 0 6px 14px rgba(0,0,0,0.18); color: inherit; }
         .st-key-grid_production div[data-testid="stButton"] > button { border-left-color: var(--prod); }
         .st-key-grid_concrete div[data-testid="stButton"] > button   { border-left-color: var(--conc); }
-        .builder-count { text-align: center; color: #6b7280; font-size: 0.8rem; margin: 0.25rem 0 0.9rem 0; }
-        [class*="st-key-grid_"] div[data-testid="stButton"] > button p { font-size: 1.05rem; font-weight: 700; }
+        .builder-count { text-align: center; opacity: 0.7; font-size: 0.9rem; margin: 0.25rem 0 1rem 0; }
+        [class*="st-key-grid_"] div[data-testid="stButton"] > button p { font-size: 1.3rem; font-weight: 750; }
 
         /* Back buttons look like links */
         [class*="st-key-back"] button {
@@ -81,13 +83,33 @@ st.markdown(
 
         /* Search box on home page */
         .st-key-home_search_box {
-            background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
-            padding: 0.9rem 1.1rem 0.4rem 1.1rem; margin-bottom: 1.6rem; box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+            background: rgba(128,128,128,0.07); border: 1px solid rgba(128,128,128,0.28); border-radius: 14px;
+            padding: 0.9rem 1.1rem 0.6rem 1.1rem; margin-bottom: 1.6rem;
         }
+        /* Search results: one row per community, coloured edge = division */
+        [class*="st-key-hit_"] button {
+            min-height: 2.6rem !important; justify-content: flex-start; text-align: left;
+            background: transparent; border: 1px solid rgba(128,128,128,0.25); border-left-width: 6px;
+        }
+        [class*="st-key-hit_"] button p { font-size: 1rem; text-align: left; }
+        [class*="st-key-hit_"] button > div { justify-content: flex-start; width: 100%; }
+        div[data-baseweb="input"]:focus-within, div[data-baseweb="select"] > div:focus-within {
+            border-color: #2E7D32 !important;
+        }
+        /* Alpha green for main action buttons (works with light or dark system theme) */
+        button[kind="primary"], button[data-testid="stBaseButton-primary"] {
+            background-color: #2E7D32 !important; border-color: #2E7D32 !important; color: #fff !important;
+        }
+        button[kind="primary"]:hover, button[data-testid="stBaseButton-primary"]:hover {
+            background-color: #1B5E20 !important; border-color: #1B5E20 !important;
+        }
+        [class*="st-key-hit_production"] button { border-left-color: var(--prod); }
+        [class*="st-key-hit_concrete"] button   { border-left-color: var(--conc); }
+        [class*="st-key-hit_pergolas"] button   { border-left-color: var(--perg); }
 
         .builder-spacer { height: 0.7rem; }
-        .archive-note { text-align: center; color: #777f89; font-size: 0.78rem; margin: 0.2rem 0 0.5rem 0; }
-        .app-footer { text-align: center; color: #8b9098; font-size: 0.85rem; padding-top: 0.5rem; }
+        .archive-note { text-align: center; opacity: 0.7; font-size: 0.78rem; margin: 0.2rem 0 0.5rem 0; }
+        .app-footer { text-align: center; opacity: 0.6; font-size: 0.85rem; padding-top: 0.5rem; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -974,7 +996,8 @@ DIVISION_TILES = [
 
 @st.cache_data(ttl=300)
 def community_index():
-    """Every community in the app, for the home-page search: (label, builder, division, archived, community)."""
+    """Every community in the app for the home-page search:
+    (display_community, builder, division, archived, community, display_builder)."""
     rows = []
     for builder_name in BUILDER_ORDER:
         try:
@@ -988,27 +1011,65 @@ def community_index():
             part = data[mask] if division == "concrete" else data[~mask]
             archived_set = ARCHIVED_COMMUNITIES.get((builder_name, division), set())
             for community in sort_display_values(part["Community"].dropna().unique()):
-                archived = community in archived_set
-                label = f"{community}  —  {builder_name} · {division.title()}" + ("  (archived)" if archived else "")
-                rows.append((label, builder_name, division, archived, community))
+                name = str(community)
+                if name.lower().endswith(" - concrete"):
+                    name = name[: -len(" - concrete")]
+                shown_builder = builder_name
+                if builder_name == "Other Builders" and " - " in name:
+                    shown_builder, name = name.split(" - ", 1)
+                rows.append((name, builder_name, division, community in archived_set, community, shown_builder))
     try:
         pergolas = load_contract_workbook(PERGOLAS_FILE, "Pergolas")
         for community in sort_display_values(pergolas["Community"].dropna().unique()):
-            rows.append((f"{community}  —  Patios & Pergolas", "Pergolas", "pergolas", False, community))
+            prefix, _, name = str(community).partition(" - ")
+            shown_builder = PERGOLA_BUILDER_NAMES.get(prefix, prefix) if name else ""
+            rows.append((name or community, "Pergolas", "pergolas", False, community, shown_builder))
     except Exception:
         pass
     return rows
 
 
-def jump_to_search_result():
-    label = st.session_state.get("home_search")
-    if not label:
-        return
-    match = next((row for row in community_index() if row[0] == label), None)
-    st.session_state["home_search"] = None
-    if not match:
-        return
-    _, builder_name, division, archived, community = match
+PERGOLA_BUILDER_NAMES = {"KB": "KB Homes", "Century": "Century Communities"}
+
+
+SEARCH_ALIASES = {"lake las vegas": "llv", "mountain falls": "mfllc mtn falls"}
+
+
+def _norm(text):
+    text = str(text).lower()
+    for ch in ".@_-/()&,":
+        text = text.replace(ch, " ")
+    return " ".join(text.split())
+
+
+def search_communities(query, limit=15):
+    tokens = _norm(query).split()
+    if not tokens:
+        return [], 0
+    scored = []
+    for row in community_index():
+        shown_name, builder_name, division, archived, community, shown_builder = row
+        name = _norm(shown_name)
+        for long_name, short in SEARCH_ALIASES.items():
+            if long_name in name:
+                name += " " + short
+        haystack = f"{name} {_norm(shown_builder)} {_norm(builder_name)} {division}"
+        if not all(token in haystack for token in tokens):
+            continue
+        q = " ".join(tokens)
+        if name.startswith(q):
+            score = 0
+        elif all(token in name for token in tokens):
+            score = 1
+        else:
+            score = 2  # matched on builder / division name
+        scored.append((score, archived, name, row))
+    scored.sort(key=lambda item: (item[0], item[1], item[2]))
+    return [item[3] for item in scored[:limit]], len(scored)
+
+
+def jump_to_search_result(match):
+    _, builder_name, division, archived, community, _ = match
     if division == "pergolas":
         prefix, page = "pergolas", "pergolas"
     else:
@@ -1018,13 +1079,14 @@ def jump_to_search_result():
     st.session_state[f"{prefix}_community"] = community
     st.session_state.pop(f"{prefix}_series", None)
     st.session_state.pop(f"{prefix}_scar_date", None)
+    st.session_state["home_q"] = ""
     st.session_state["contracts_page"] = page
 
 
 def show_contracts_home():
     st.markdown(
         """
-        <div class="contracts-hero">
+        <div class="contracts-hero hero-center">
             <div class="section-kicker">Alpha Landscapes · Contract Database</div>
             <h1>Contracts</h1>
             <p>Search any community, or pick a division below.</p>
@@ -1034,14 +1096,32 @@ def show_contracts_home():
     )
 
     with st.container(key="home_search_box"):
-        st.selectbox(
+        query = st.text_input(
             "🔎 Find a community",
-            [row[0] for row in community_index()],
-            index=None,
-            placeholder="Start typing a community name (e.g. Aries, Esplanade, Skyeview)…",
-            key="home_search",
-            on_change=jump_to_search_result,
+            placeholder="Type a community name (e.g. Aries, LLV, Esplanade, Skyeview) and press Enter",
+            key="home_q",
         )
+        if query.strip():
+            hits, total = search_communities(query)
+            if not hits:
+                st.caption(f'No communities match "{query.strip()}".')
+            else:
+                st.caption(
+                    f"{total} match{'es' if total != 1 else ''}"
+                    + (f" — showing the first {len(hits)}" if total > len(hits) else "")
+                    + " · click one to open it"
+                )
+                for i, row in enumerate(hits):
+                    shown_name, builder_name, division, archived, community, shown_builder = row
+                    division_name = "Patios & Pergolas" if division == "pergolas" else division.title()
+                    label = f"**{shown_name}**  —  {shown_builder}  —  {division_name}" + ("  (archived)" if archived else "")
+                    st.button(
+                        label,
+                        key=f"hit_{division}_{i}",
+                        on_click=jump_to_search_result,
+                        args=(row,),
+                        use_container_width=True,
+                    )
 
     def tile(column, item):
         key, label, note, page = item
@@ -1110,7 +1190,7 @@ def show_builder_home(division):
     )
 
     counts = {}
-    for _, builder_name, div, archived, _ in community_index():
+    for _, builder_name, div, archived, *_ in community_index():
         if div == division and not archived:
             counts[builder_name] = counts.get(builder_name, 0) + 1
 
