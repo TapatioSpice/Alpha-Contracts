@@ -591,22 +591,36 @@ def load_contract_folders():
         return {}
 
 
-def render_contract_pdf_link(builder_name, community, key):
-    """Button to the shared OneDrive CONTRACTS folder plus where to click for this community."""
+def render_contract_pdf_link(builder_name, community, key, series=None):
+    """Button that opens this community's own Contract folder in OneDrive.
+
+    contract_folders.json keys are "Builder|Community" and, where one app
+    community covers several OneDrive folders (e.g. Pulte Aries 2500/3000/...),
+    "Builder|Community|Series". The series key wins when it exists.
+    """
     config = load_contract_folders()
-    entry = config.get("folders", {}).get(f"{builder_name}|{community}", {})
+    folders = config.get("folders", {})
+    entry = {}
+    if series is not None and str(series).strip():
+        entry = folders.get(f"{builder_name}|{community}|{series}", {})
+    if not entry:
+        entry = folders.get(f"{builder_name}|{community}", {})
     url = entry.get("url") or config.get("shared_folder_url") or CONTRACTS_SHARED_URL
-    path = entry.get("path")
+    path = entry.get("path", "")
 
     cols = st.columns([1.4, 3])
     with cols[0]:
         st.link_button("📄 Contract PDFs", url, use_container_width=True)
     with cols[1]:
-        if path and not entry.get("url"):
-            crumbs = " › ".join(["CONTRACTS"] + path.split("/"))
-            st.caption(f"Open the folder, then go to: **{crumbs}** › Contract")
-        elif not path:
-            st.caption("Opens the shared CONTRACTS folder (Division › Builder › Community › Contract).")
+        crumbs = " › ".join(["CONTRACTS"] + [p for p in path.split("/") if p]) if path else ""
+        if entry.get("url") and entry.get("level", "community") == "community":
+            st.caption(f"Opens **{crumbs}**")
+        elif entry.get("url"):
+            st.caption(f"No contract PDF filed for this community yet — opens **{crumbs}**")
+        elif path:
+            st.caption(f"Open the folder, then go to: **{crumbs}**")
+        else:
+            st.caption("No contract PDF filed for this community yet — opens the shared CONTRACTS folder.")
 
 
 def render_contract_browser(data, key_prefix, builder_name=""):
@@ -663,7 +677,7 @@ def render_contract_browser(data, key_prefix, builder_name=""):
         )
 
     if builder_name:
-        render_contract_pdf_link(builder_name, selected_community, f"{key_prefix}_pdfs")
+        render_contract_pdf_link(builder_name, selected_community, f"{key_prefix}_pdfs", selected_series)
 
     if st.button("Create Table", type="primary", key=f"{key_prefix}_create"):
         if selected_scar_date is None:
