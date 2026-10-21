@@ -11,34 +11,83 @@ st.set_page_config(page_title="Contracts", page_icon="📄", layout="wide")
 st.markdown(
     """
     <style>
+        :root {
+            --prod: #2E7D32;  --prod2: #66BB6A;
+            --conc: #455A64;  --conc2: #90A4AE;
+            --maint: #00796B; --maint2: #4DB6AC;
+            --cust: #E65100;  --cust2: #FFA726;
+            --perg: #6A1B9A;  --perg2: #AB47BC;
+            --home: #1B5E20;  --home2: #43A047;
+            --arch: #616161;  --arch2: #9E9E9E;
+        }
         .block-container {
-            max-width: 1120px;
-            margin: 0 auto;
-            padding-top: 2.5rem;
-            padding-bottom: 3rem;
-            padding-left: 2rem;
-            padding-right: 2rem;
+            max-width: 1120px; margin: 0 auto;
+            padding: 3.2rem 2rem 3rem 2rem;
         }
-        .contracts-hero { text-align: center; margin-bottom: 1.8rem; }
-        .contracts-hero h1 { margin-bottom: 0.35rem; }
-        .contracts-hero p { color: #9aa0a6; margin-top: 0; line-height: 1.5; }
+        /* Page banner */
+        .contracts-hero {
+            border-radius: 16px; padding: 1.4rem 1.8rem; margin: 0.4rem 0 1.6rem 0;
+            color: #fff; background: linear-gradient(120deg, var(--home), var(--home2));
+            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+        }
+        .contracts-hero h1 { color: #fff !important; margin: 0; padding: 0; font-size: 2rem; }
+        .contracts-hero p { color: rgba(255,255,255,0.9); margin: 0.35rem 0 0 0; }
         .section-kicker {
-            text-align: center; color: #8f96a3; text-transform: uppercase;
-            letter-spacing: 0.12em; font-size: 0.74rem; font-weight: 700;
-            margin-bottom: 0.4rem;
+            color: rgba(255,255,255,0.85); text-transform: uppercase; letter-spacing: 0.14em;
+            font-size: 0.74rem; font-weight: 700; margin-bottom: 0.25rem;
         }
+        .theme-production  { background: linear-gradient(120deg, var(--prod),  var(--prod2)); }
+        .theme-concrete    { background: linear-gradient(120deg, var(--conc),  var(--conc2)); }
+        .theme-maintenance { background: linear-gradient(120deg, var(--maint), var(--maint2)); }
+        .theme-customs     { background: linear-gradient(120deg, var(--cust),  var(--cust2)); }
+        .theme-pergolas    { background: linear-gradient(120deg, var(--perg),  var(--perg2)); }
+        .theme-archived    { background: linear-gradient(120deg, var(--arch),  var(--arch2)); }
+
+        div[data-testid="stButton"] > button { min-height: 3.15rem; border-radius: 10px; font-weight: 650; }
+
+        /* Home page division tiles */
+        [class*="st-key-tile_"] button {
+            min-height: 6.2rem; font-size: 1.25rem; background: #fff; color: #1f2937;
+            border: 1px solid #e5e7eb; border-top-width: 7px; border-radius: 14px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.07); transition: transform .12s, box-shadow .12s;
+        }
+        [class*="st-key-tile_"] button:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.13); color: #111827; }
+        [class*="st-key-tile_"] button p { font-size: 1.2rem; font-weight: 700; }
+        .st-key-tile_production button  { border-top-color: var(--prod); }
+        .st-key-tile_concrete button    { border-top-color: var(--conc); }
+        .st-key-tile_maintenance button { border-top-color: var(--maint); }
+        .st-key-tile_customs button     { border-top-color: var(--cust); }
+        .st-key-tile_pergolas button    { border-top-color: var(--perg); }
+        .tile-note { text-align: center; color: #6b7280; font-size: 0.85rem; margin: -0.4rem 0 1.1rem 0; }
+
+        /* Builder buttons: coloured edge per division */
+        [class*="st-key-grid_"] div[data-testid="stButton"] > button {
+            background: #fff; color: #1f2937; border: 1px solid #e5e7eb; border-left-width: 7px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+        [class*="st-key-grid_"] div[data-testid="stButton"] > button:hover { box-shadow: 0 6px 14px rgba(0,0,0,0.12); color: #111827; }
+        .st-key-grid_production div[data-testid="stButton"] > button { border-left-color: var(--prod); }
+        .st-key-grid_concrete div[data-testid="stButton"] > button   { border-left-color: var(--conc); }
+        .builder-count { text-align: center; color: #6b7280; font-size: 0.8rem; margin: 0.25rem 0 0.9rem 0; }
+        [class*="st-key-grid_"] div[data-testid="stButton"] > button p { font-size: 1.05rem; font-weight: 700; }
+
+        /* Back buttons look like links */
+        [class*="st-key-back"] button {
+            background: transparent !important; border: none !important; box-shadow: none !important;
+            min-height: auto !important; padding: 0.2rem 0 !important; color: #2E7D32 !important; font-weight: 600;
+        }
+        [class*="st-key-back"] button:hover { text-decoration: underline; }
+        [class*="st-key-refresh"] button { min-height: 2.3rem !important; font-size: 0.85rem; color: #4b5563; }
+
+        /* Search box on home page */
+        .st-key-home_search_box {
+            background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+            padding: 0.9rem 1.1rem 0.4rem 1.1rem; margin-bottom: 1.6rem; box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+
         .builder-spacer { height: 0.7rem; }
-        div[data-testid="stButton"] > button {
-            min-height: 3.15rem; border-radius: 10px; font-weight: 650;
-        }
-        .archive-note {
-            text-align: center; color: #777f89; font-size: 0.78rem;
-            margin-top: 0.2rem; margin-bottom: 0.5rem;
-        }
-        .app-footer {
-            text-align: center; color: #8b9098; font-size: 0.85rem;
-            padding-top: 0.5rem;
-        }
+        .archive-note { text-align: center; color: #777f89; font-size: 0.78rem; margin: 0.2rem 0 0.5rem 0; }
+        .app-footer { text-align: center; color: #8b9098; font-size: 0.85rem; padding-top: 0.5rem; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -631,20 +680,23 @@ def render_contract_browser(data, key_prefix, builder_name=""):
         return
 
     communities = sort_display_values(data["Community"].dropna().unique())
-    selected_community = st.selectbox(
-        "1. Select Community",
-        communities,
-        key=f"{key_prefix}_community",
-    )
+    pick_cols = st.columns([1.5, 1, 1.5], gap="medium")
+    with pick_cols[0]:
+        selected_community = st.selectbox(
+            "1. Select Community",
+            communities,
+            key=f"{key_prefix}_community",
+        )
 
     series_options = sort_display_values(
         data.loc[data["Community"] == selected_community, "Series"].dropna().unique()
     )
-    selected_series = st.selectbox(
-        "2. Select Series",
-        series_options,
-        key=f"{key_prefix}_series",
-    )
+    with pick_cols[1]:
+        selected_series = st.selectbox(
+            "2. Select Series",
+            series_options,
+            key=f"{key_prefix}_series",
+        )
 
     date_data = data[
         (data["Community"] == selected_community)
@@ -668,13 +720,14 @@ def render_contract_browser(data, key_prefix, builder_name=""):
             notes = [note for note in notes if note]
             return f"{label} — {status} • {' • '.join(notes)}" if notes else f"{label} — {status}"
 
-        selected_scar_date = st.selectbox(
-            "3. Select Scar / Contract Effective Date",
-            scar_dates,
-            index=0,
-            format_func=date_label,
-            key=f"{key_prefix}_scar_date",
-        )
+        with pick_cols[2]:
+            selected_scar_date = st.selectbox(
+                "3. Select Scar / Contract Effective Date",
+                scar_dates,
+                index=0,
+                format_func=date_label,
+                key=f"{key_prefix}_scar_date",
+            )
 
     if builder_name:
         render_contract_pdf_link(builder_name, selected_community, f"{key_prefix}_pdfs", selected_series)
@@ -712,7 +765,7 @@ def show_maintenance_home():
 
     st.markdown(
         """
-        <div class="contracts-hero">
+        <div class="contracts-hero theme-maintenance">
             <div class="section-kicker">Maintenance</div>
             <h1>Maintenance</h1>
         </div>
@@ -754,7 +807,7 @@ def show_maintenance_revenue():
 
     st.markdown(
         """
-        <div class="contracts-hero">
+        <div class="contracts-hero theme-maintenance">
             <div class="section-kicker">Maintenance</div>
             <h1>Expected Monthly Revenue</h1>
         </div>
@@ -894,7 +947,7 @@ def show_customs_documents():
 
     st.markdown(
         """
-        <div class="contracts-hero">
+        <div class="contracts-hero theme-customs">
             <div class="section-kicker">Customs</div>
             <h1>Customs Documents</h1>
         </div>
@@ -910,41 +963,99 @@ def show_customs_documents():
     )
 
 
+DIVISION_TILES = [
+    ("production", "🌿  Production", "Builder landscape & paver contracts", "production_builders"),
+    ("concrete", "🧱  Concrete", "Foundations, flatwork & driveways", "concrete_builders"),
+    ("pergolas", "⛱️  Patios & Pergolas", "Patio cover & pergola pricing", "pergolas"),
+    ("maintenance", "🌳  Maintenance", "Monthly revenue & contracts", "maintenance_home"),
+    ("customs", "🏡  Customs", "Custom job documents", "customs_documents"),
+]
+
+
+@st.cache_data(ttl=300)
+def community_index():
+    """Every community in the app, for the home-page search: (label, builder, division, archived, community)."""
+    rows = []
+    for builder_name in BUILDER_ORDER:
+        try:
+            data = load_builder_data(builder_name)
+        except Exception:
+            continue
+        if data is None or data.empty:
+            continue
+        mask = concrete_mask(data)
+        for division in ("production", "concrete"):
+            part = data[mask] if division == "concrete" else data[~mask]
+            archived_set = ARCHIVED_COMMUNITIES.get((builder_name, division), set())
+            for community in sort_display_values(part["Community"].dropna().unique()):
+                archived = community in archived_set
+                label = f"{community}  —  {builder_name} · {division.title()}" + ("  (archived)" if archived else "")
+                rows.append((label, builder_name, division, archived, community))
+    try:
+        pergolas = load_contract_workbook(PERGOLAS_FILE, "Pergolas")
+        for community in sort_display_values(pergolas["Community"].dropna().unique()):
+            rows.append((f"{community}  —  Patios & Pergolas", "Pergolas", "pergolas", False, community))
+    except Exception:
+        pass
+    return rows
+
+
+def jump_to_search_result():
+    label = st.session_state.get("home_search")
+    if not label:
+        return
+    match = next((row for row in community_index() if row[0] == label), None)
+    st.session_state["home_search"] = None
+    if not match:
+        return
+    _, builder_name, division, archived, community = match
+    if division == "pergolas":
+        prefix, page = "pergolas", "pergolas"
+    else:
+        slug = BUILDER_SLUGS[builder_name]
+        prefix = f"{slug}_{division}_{'archived' if archived else 'active'}"
+        page = f"{division}_{slug}" + ("_archived" if archived else "")
+    st.session_state[f"{prefix}_community"] = community
+    st.session_state.pop(f"{prefix}_series", None)
+    st.session_state.pop(f"{prefix}_scar_date", None)
+    st.session_state["contracts_page"] = page
+
+
 def show_contracts_home():
     st.markdown(
         """
         <div class="contracts-hero">
-            <div class="section-kicker">Contract Database</div>
+            <div class="section-kicker">Alpha Landscapes · Contract Database</div>
             <h1>Contracts</h1>
+            <p>Search any community, or pick a division below.</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    row1 = st.columns([0.8, 1.4, 1.4, 0.8], gap="large")
-    with row1[1]:
-        if st.button("Production", type="primary", key="open_production", use_container_width=True):
-            go_to_page("production_builders")
-    with row1[2]:
-        if st.button("Concrete", key="open_concrete", use_container_width=True):
-            go_to_page("concrete_builders")
+    with st.container(key="home_search_box"):
+        st.selectbox(
+            "🔎 Find a community",
+            [row[0] for row in community_index()],
+            index=None,
+            placeholder="Start typing a community name (e.g. Aries, Esplanade, Skyeview)…",
+            key="home_search",
+            on_change=jump_to_search_result,
+        )
 
-    st.markdown('<div class="builder-spacer"></div>', unsafe_allow_html=True)
+    def tile(column, item):
+        key, label, note, page = item
+        with column:
+            if st.button(label, key=f"tile_{key}", use_container_width=True):
+                go_to_page(page)
+            st.markdown(f'<div class="tile-note">{note}</div>', unsafe_allow_html=True)
 
-    row2 = st.columns([0.8, 1.4, 1.4, 0.8], gap="large")
-    with row2[1]:
-        if st.button("Maintenance", key="open_maintenance", use_container_width=True):
-            go_to_page("maintenance_home")
-    with row2[2]:
-        if st.button("Customs", key="open_customs", use_container_width=True):
-            go_to_page("customs_documents")
-
-    st.markdown('<div class="builder-spacer"></div>', unsafe_allow_html=True)
-
-    row3 = st.columns([1.5, 1.4, 1.5], gap="large")
-    with row3[1]:
-        if st.button("Patios & Pergolas", key="open_pergolas", use_container_width=True):
-            go_to_page("pergolas")
+    row1 = st.columns(3, gap="large")
+    for column, item in zip(row1, DIVISION_TILES[:3]):
+        tile(column, item)
+    row2 = st.columns([0.5, 1, 1, 0.5], gap="large")
+    for column, item in zip(row2[1:3], DIVISION_TILES[3:]):
+        tile(column, item)
 
 
 def show_pergolas():
@@ -959,7 +1070,7 @@ def show_pergolas():
 
     st.markdown(
         """
-        <div class="contracts-hero">
+        <div class="contracts-hero theme-pergolas">
             <div class="section-kicker">All Builders</div>
             <h1>Patios &amp; Pergolas</h1>
         </div>
@@ -989,29 +1100,39 @@ def show_builder_home(division):
 
     st.markdown(
         f"""
-        <div class="contracts-hero">
+        <div class="contracts-hero theme-{division}">
             <div class="section-kicker">{label}</div>
             <h1>{label} Contracts</h1>
+            <p>Pick a builder</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    row1 = st.columns(3, gap="large")
-    with row1[0]: builder_button("Pulte", division, "primary")
-    with row1[1]: builder_button("Woodside", division)
-    with row1[2]: builder_button("Richmond", division)
+    counts = {}
+    for _, builder_name, div, archived, _ in community_index():
+        if div == division and not archived:
+            counts[builder_name] = counts.get(builder_name, 0) + 1
 
-    st.markdown('<div class="builder-spacer"></div>', unsafe_allow_html=True)
-    row2 = st.columns(3, gap="large")
-    with row2[0]: builder_button("Taylor Morrison", division)
-    with row2[1]: builder_button("Century Communities", division)
-    with row2[2]: builder_button("KB Homes", division)
+    def cell(column, builder_name):
+        with column:
+            builder_button(builder_name, division)
+            n = counts.get(builder_name, 0)
+            text = f'{n} active communit{"y" if n == 1 else "ies"}' if n else "No contracts loaded yet"
+            st.markdown(
+                f'<div class="builder-count">{text}</div>',
+                unsafe_allow_html=True,
+            )
 
-    st.markdown('<div class="builder-spacer"></div>', unsafe_allow_html=True)
-    row3 = st.columns([0.5, 1, 1, 0.5], gap="large")
-    with row3[1]: builder_button("Tri Pointe of Nevada", division)
-    with row3[2]: builder_button("Other Builders", division)
+    with st.container(key=f"grid_{division}"):
+        names = BUILDER_ORDER
+        for start in range(0, len(names) - 2, 3):
+            row = st.columns(3, gap="large")
+            for column, builder_name in zip(row, names[start:start + 3]):
+                cell(column, builder_name)
+        last = st.columns([0.5, 1, 1, 0.5], gap="large")
+        for column, builder_name in zip(last[1:3], names[6:]):
+            cell(column, builder_name)
 
 
 def show_builder_contracts(builder_name, division):
@@ -1029,8 +1150,8 @@ def show_builder_contracts(builder_name, division):
 
     st.markdown(
         f"""
-        <div class="contracts-hero">
-            <div class="section-kicker">{builder_name} • {label}</div>
+        <div class="contracts-hero theme-{division}">
+            <div class="section-kicker">Contracts › {label} › {builder_name}</div>
             <h1>{builder_name} {label} Contracts</h1>
         </div>
         """,
@@ -1071,8 +1192,8 @@ def show_builder_archived(builder_name, division):
 
     st.markdown(
         f"""
-        <div class="contracts-hero">
-            <div class="section-kicker">{builder_name} • {label}</div>
+        <div class="contracts-hero theme-archived">
+            <div class="section-kicker">Contracts › {label} › {builder_name}</div>
             <h1>Archived Jobs</h1>
         </div>
         """,
@@ -1092,7 +1213,7 @@ def show_builder_placeholder(division, builder_name):
 
     st.markdown(
         f"""
-        <div class="contracts-hero">
+        <div class="contracts-hero theme-{division}">
             <div class="section-kicker">{label}</div>
             <h1>{builder_name} Contracts</h1>
         </div>
