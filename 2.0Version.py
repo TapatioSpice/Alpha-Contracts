@@ -68,11 +68,17 @@ st.markdown(
 
         /* Builder buttons: coloured edge per division */
         [class*="st-key-grid_"] div[data-testid="stButton"] > button {
-            min-height: 4.4rem !important; background: rgba(128,128,128,0.07); color: inherit;
+            min-height: 7.4rem !important; background-color: #ffffff !important; color: #1f2937 !important;
             border: 1px solid rgba(128,128,128,0.28); border-left-width: 8px; border-radius: 12px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            background-repeat: no-repeat !important; background-position: center 0.75rem !important;
+            background-size: auto 3.3rem !important;
         }
-        [class*="st-key-grid_"] div[data-testid="stButton"] > button:hover { box-shadow: 0 6px 14px rgba(0,0,0,0.18); color: inherit; }
+        [class*="st-key-grid_"] [class*="st-key-builder_"]:not(.st-key-builder_production_other_builders):not(.st-key-builder_concrete_other_builders) button {
+            align-items: flex-end !important; padding-bottom: 0.55rem !important;
+        }
+        [class*="st-key-grid_"] div[data-testid="stButton"] > button:hover { box-shadow: 0 6px 14px rgba(0,0,0,0.18); transform: translateY(-2px); }
+        [class*="st-key-grid_"] div[data-testid="stButton"] > button p { color: #1f2937 !important; }
         .st-key-grid_production div[data-testid="stButton"] > button { border-left-color: var(--prod); }
         .st-key-grid_concrete div[data-testid="stButton"] > button   { border-left-color: var(--conc); }
         .builder-count { text-align: center; opacity: 0.7; font-size: 0.9rem; margin: 0.25rem 0 1rem 0; }
@@ -80,14 +86,17 @@ st.markdown(
 
         /* Back / Home buttons: big and easy to spot */
         [class*="st-key-back"] button, [class*="st-key-homebtn"] button {
-            min-height: 3rem !important; padding: 0.3rem 1.4rem !important; border-radius: 999px !important;
-            background: rgba(46,125,50,0.10) !important; border: 2px solid #2E7D32 !important;
-            color: #2E7D32 !important; box-shadow: none !important;
+            min-height: 3.1rem !important; padding: 0.3rem 1.5rem !important; border-radius: 999px !important;
+            background: #ffffff !important; border: 3px solid #C62828 !important;
+            color: #111111 !important; box-shadow: 0 2px 8px rgba(198,40,40,0.25) !important;
         }
-        [class*="st-key-back"] button p, [class*="st-key-homebtn"] button p { font-size: 1.1rem; font-weight: 700; }
+        [class*="st-key-back"] button p, [class*="st-key-homebtn"] button p {
+            font-size: 1.15rem; font-weight: 900 !important; color: #111111 !important;
+        }
         [class*="st-key-back"] button:hover, [class*="st-key-homebtn"] button:hover {
-            background: #2E7D32 !important; color: #fff !important;
+            background: #C62828 !important; border-color: #C62828 !important;
         }
+        [class*="st-key-back"] button:hover p, [class*="st-key-homebtn"] button:hover p { color: #ffffff !important; }
         [class*="st-key-refresh"] button { min-height: 2.3rem !important; font-size: 0.85rem; color: #4b5563; }
 
         /* Search box on home page */
@@ -111,7 +120,7 @@ st.markdown(
         }
         a[data-testid="stBaseLinkButton-primary"]:hover { background-color: #1B5E20 !important; }
         @media (prefers-color-scheme: dark) {
-            [class*="st-key-back"] button, [class*="st-key-homebtn"] button { color: #81C784 !important; border-color: #66BB6A !important; }
+            [class*="st-key-back"] button, [class*="st-key-homebtn"] button { border-color: #EF5350 !important; }
         }
         button[kind="primary"], button[data-testid="stBaseButton-primary"] {
             background-color: #2E7D32 !important; border-color: #2E7D32 !important; color: #fff !important;
@@ -161,6 +170,26 @@ def inject_tile_logo_css():
                 f'.st-key-tile_{key} button {{ background-image: url("{uri}") !important; }}'
             )
     st.markdown("<style>" + "\n".join(rules) + "</style>", unsafe_allow_html=True)
+
+
+# Builder logos on the Production / Concrete builder buttons (Other Builders has none).
+BUILDER_LOGOS = [
+    "pulte", "woodside", "richmond", "taylor_morrison",
+    "century_communities", "kb_homes", "tri_pointe",
+]
+
+
+def inject_builder_logo_css(division):
+    rules = []
+    for slug in BUILDER_LOGOS:
+        uri = logo_data_uri(f"builder_{slug}.png")
+        if uri:
+            rules.append(
+                f'.st-key-builder_{division}_{slug} button {{ background-image: url("{uri}") !important; }}'
+            )
+    st.markdown("<style>" + "\n".join(rules) + "</style>", unsafe_allow_html=True)
+
+
 REQUIRED_COLUMNS = ["Community", "Series", "Scar.Date", "Plan", "Work Type", "Amount"]
 NOTE_COLUMN = "Note"
 
@@ -1228,6 +1257,7 @@ def builder_button(builder_name, division, button_type="secondary"):
 
 def show_builder_home(division):
     label = "Concrete" if division == "concrete" else "Production"
+    inject_builder_logo_css(division)
     if st.button("⬅  Back to Home", key=f"back_home_{division}"):
         go_to_page("home")
 
