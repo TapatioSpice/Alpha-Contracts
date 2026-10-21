@@ -13,10 +13,10 @@ st.markdown(
     <style>
         :root {
             --prod: #2E7D32;  --prod2: #66BB6A;
-            --conc: #455A64;  --conc2: #90A4AE;
-            --maint: #00796B; --maint2: #4DB6AC;
-            --cust: #E65100;  --cust2: #FFA726;
-            --perg: #6A1B9A;  --perg2: #AB47BC;
+            --conc: #212121;  --conc2: #757575;
+            --maint: #1B6E3A; --maint2: #1565C0;
+            --cust: #00609E;  --cust2: #00AEEF;
+            --perg: #6D3F17;  --perg2: #A9744A;
             --home: #1B5E20;  --home2: #43A047;
             --arch: #616161;  --arch2: #9E9E9E;
         }
@@ -31,7 +31,8 @@ st.markdown(
             box-shadow: 0 6px 18px rgba(0,0,0,0.12);
         }
         .contracts-hero h1 { color: #fff !important; margin: 0; padding: 0; font-size: 1.65rem; }
-        .hero-center { text-align: center; }
+        .hero-center { text-align: center; padding: 1.5rem 1.6rem !important; }
+        .hero-center h1 { font-size: 2.9rem !important; letter-spacing: 0.01em; }
         .contracts-hero p { color: rgba(255,255,255,0.9); margin: 0.35rem 0 0 0; }
         .section-kicker {
             color: rgba(255,255,255,0.85); text-transform: uppercase; letter-spacing: 0.14em;
@@ -46,19 +47,23 @@ st.markdown(
 
         div[data-testid="stButton"] > button { min-height: 3.15rem; border-radius: 10px; font-weight: 650; }
 
-        /* Home page division tiles */
+        /* Home page division tiles: company logo inside each button */
         [class*="st-key-tile_"] button {
-            min-height: 8.5rem !important; background: rgba(128,128,128,0.07); color: inherit;
-            border: 1px solid rgba(128,128,128,0.28); border-top-width: 8px; border-radius: 16px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.07); transition: transform .12s, box-shadow .12s;
+            min-height: 14rem !important; width: 100%;
+            background-color: #ffffff !important; background-repeat: no-repeat !important;
+            background-position: center 0.9rem !important; background-size: auto 9.6rem !important;
+            border: 1px solid rgba(128,128,128,0.28) !important; border-bottom-width: 8px !important;
+            border-radius: 16px !important; box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            align-items: flex-end !important; padding-bottom: 0.6rem !important; color: #1f2937 !important;
+            transition: transform .12s, box-shadow .12s;
         }
-        [class*="st-key-tile_"] button:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.18); color: inherit; }
-        [class*="st-key-tile_"] button p { font-size: 1.6rem; font-weight: 750; }
-        .st-key-tile_production button  { border-top-color: var(--prod); }
-        .st-key-tile_concrete button    { border-top-color: var(--conc); }
-        .st-key-tile_maintenance button { border-top-color: var(--maint); }
-        .st-key-tile_customs button     { border-top-color: var(--cust); }
-        .st-key-tile_pergolas button    { border-top-color: var(--perg); }
+        [class*="st-key-tile_"] button:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(0,0,0,0.18); }
+        [class*="st-key-tile_"] button p { font-size: 1.35rem; font-weight: 750; color: #1f2937; }
+        .st-key-tile_production button  { border-bottom-color: var(--prod) !important; }
+        .st-key-tile_concrete button    { border-bottom-color: var(--conc) !important; }
+        .st-key-tile_maintenance button { border-bottom-color: var(--maint2) !important; }
+        .st-key-tile_customs button     { border-bottom-color: var(--cust2) !important; }
+        .st-key-tile_pergolas button    { border-bottom-color: var(--perg) !important; }
         .tile-note { text-align: center; opacity: 0.7; font-size: 0.95rem; margin: -0.3rem 0 1.3rem 0; }
 
         /* Builder buttons: coloured edge per division */
@@ -101,6 +106,13 @@ st.markdown(
             border-color: #2E7D32 !important;
         }
         /* Alpha green for main action buttons (works with light or dark system theme) */
+        a[data-testid="stBaseLinkButton-primary"] {
+            background-color: #2E7D32 !important; border-color: #2E7D32 !important; color: #fff !important;
+        }
+        a[data-testid="stBaseLinkButton-primary"]:hover { background-color: #1B5E20 !important; }
+        @media (prefers-color-scheme: dark) {
+            [class*="st-key-back"] button, [class*="st-key-homebtn"] button { color: #81C784 !important; border-color: #66BB6A !important; }
+        }
         button[kind="primary"], button[data-testid="stBaseButton-primary"] {
             background-color: #2E7D32 !important; border-color: #2E7D32 !important; color: #fff !important;
         }
@@ -120,6 +132,35 @@ st.markdown(
 )
 
 BASE_DIR = Path(__file__).resolve().parent
+
+# Division logos (from alphalandscapeslv.com) shown on the home-page buttons.
+TILE_LOGOS = {
+    "production": "logo_production.png",
+    "concrete": "logo_concrete.png",
+    "pergolas": "logo_patio.png",
+    "maintenance": "logo_maintenance.png",
+    "customs": "logo_customs.png",
+}
+
+
+@st.cache_data
+def logo_data_uri(filename):
+    import base64
+    path = BASE_DIR / "assets" / filename
+    if not path.exists():
+        return ""
+    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
+
+
+def inject_tile_logo_css():
+    rules = []
+    for key, filename in TILE_LOGOS.items():
+        uri = logo_data_uri(filename)
+        if uri:
+            rules.append(
+                f'.st-key-tile_{key} button {{ background-image: url("{uri}") !important; }}'
+            )
+    st.markdown("<style>" + "\n".join(rules) + "</style>", unsafe_allow_html=True)
 REQUIRED_COLUMNS = ["Community", "Series", "Scar.Date", "Plan", "Work Type", "Amount"]
 NOTE_COLUMN = "Note"
 
@@ -997,11 +1038,11 @@ def show_customs_documents():
 
 
 DIVISION_TILES = [
-    ("production", "🌿  Production", "Builder landscape & paver contracts", "production_builders"),
-    ("concrete", "🧱  Concrete", "Foundations, flatwork & driveways", "concrete_builders"),
-    ("pergolas", "⛱️  Patios & Pergolas", "Patio cover & pergola pricing", "pergolas"),
-    ("maintenance", "🌳  Maintenance", "Monthly revenue & contracts", "maintenance_home"),
-    ("customs", "🏡  Customs", "Custom job documents", "customs_documents"),
+    ("production", "Production", "Builder landscape & paver contracts", "production_builders"),
+    ("concrete", "Concrete", "Foundations, flatwork & driveways", "concrete_builders"),
+    ("pergolas", "Patios & Pergolas", "Patio cover & pergola pricing", "pergolas"),
+    ("maintenance", "Maintenance", "Monthly revenue & contracts", "maintenance_home"),
+    ("customs", "Customs", "Custom job documents", "customs_documents"),
 ]
 
 
@@ -1095,6 +1136,7 @@ def jump_to_search_result(match):
 
 
 def show_contracts_home():
+    inject_tile_logo_css()
     st.markdown(
         """
         <div class="contracts-hero hero-center">
