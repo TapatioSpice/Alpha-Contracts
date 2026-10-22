@@ -144,6 +144,9 @@ st.markdown(
         .doc-card { border: 1px solid rgba(128,128,128,0.28); border-left: 8px solid var(--cust2); border-radius: 14px;
                     padding: 0.8rem 1.2rem; margin: 0.6rem 0 0.9rem 0; background: rgba(128,128,128,0.05); }
         .doc-card.land { border-left-color: var(--land2); }
+        .doc-card.po { border-left-color: var(--prod); }
+        .doc-card.po .doc-pill { background: rgba(46,125,50,0.15); color: #1B5E20; }
+        [class*="st-key-hit_po"] button         { border-left-color: var(--prod2); }
         .doc-card .doc-title { font-size: 1.08rem; font-weight: 700; }
         .doc-card .doc-meta { opacity: 0.7; font-size: 0.9rem; margin-top: 0.15rem; }
         .doc-pill { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700;
@@ -1091,10 +1094,10 @@ def private_repo_bytes(repo, path):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def load_document_index(repo):
+def load_document_index(repo, index_file="index.json"):
     """Returns (documents, error). Each document: group, job, lot, title, type, date, path, size_kb."""
     try:
-        data = json.loads(private_repo_bytes(repo, "index.json").decode("utf-8"))
+        data = json.loads(private_repo_bytes(repo, index_file).decode("utf-8"))
         return data.get("documents", []), ""
     except HTTPError as exc:
         if exc.code in (401, 403, 404):
@@ -1199,6 +1202,79 @@ def render_document_browser(repo, key, theme, two_level, group_label="Builder", 
     st.pdf(pdf, height=950)
 
 
+PO_INDEX_FILE = "production_index.json"  # Contour, Pinnacle & Signature lot POs (stored in Land_Contracts)
+PO_BUILDERS_NOTE = "Contour, Pinnacle & Signature Homes — one folder per lot, like the OneDrive CONTRACTS folder"
+
+
+def render_lot_po_browser():
+    """Builder → Community → Lot → PO, for the PO builders (Contour, Pinnacle, Signature)."""
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="contracts-hero theme-production">
+            <div class="section-kicker">Production · PO Builders</div>
+            <h1>Lot POs &amp; Contracts</h1>
+            <p>{PO_BUILDERS_NOTE}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    docs, error = load_document_index(LAND_REPO, PO_INDEX_FILE)
+    if error:
+        render_document_access_help(LAND_REPO, error)
+        return
+    if not docs:
+        st.info("No lot POs loaded yet.")
+        return
+
+    cols = st.columns([1, 1.3, 1.3], gap="medium")
+    builders = sorted({d["builder"] for d in docs})
+    with cols[0]:
+        builder = st.selectbox("1. Select Builder", builders, key="po_builder")
+    pool = [d for d in docs if d["builder"] == builder]
+    communities = sorted({d["community"] for d in pool}, key=lambda c: (c == "Master Contract", c.lower()))
+    with cols[1]:
+        community = st.selectbox("2. Select Community", communities, key=f"po_comm_{builder}")
+    pool = [d for d in pool if d["community"] == community]
+    sections = sorted({(tuple(d["section_order"]), d["section"]) for d in pool})
+    section_names = [name for _, name in sections]
+    counts = {name: sum(1 for d in pool if d["section"] == name) for name in section_names}
+    with cols[2]:
+        section = st.selectbox("3. Select Lot", section_names, key=f"po_lot_{builder}_{community}",
+                               format_func=lambda n: f"{n}  ({counts[n]})")
+    lot_docs = sorted([d for d in pool if d["section"] == section], key=lambda d: d.get("date", ""), reverse=True)
+
+    def label(i):
+        d = lot_docs[i]
+        title = re.sub(r"^\d{4}-\d{2}-\d{2}\s*-\s*", "", d["title"])
+        title = title.replace(f'{community} - ', "").replace("Production - ", "")
+        date = f' · {pd.Timestamp(d["date"]).strftime("%m/%d/%Y")}' if d.get("date") else ""
+        return f'{d["type"]} — {title}{date}'
+
+    pick = st.selectbox("4. Select PO / Document", list(range(len(lot_docs))), format_func=label,
+                        key=f"po_doc_{builder}_{community}_{section}")
+    st.caption(f'{len(lot_docs)} document{"s" if len(lot_docs) != 1 else ""} for **{community} · {section}** '
+               f'· {len(pool)} total for {community}')
+    doc = lot_docs[pick]
+    try:
+        with st.spinner("Loading PDF…"):
+            pdf = load_document_pdf(LAND_REPO, doc["path"])
+    except Exception as exc:
+        st.error(f"Could not open this PDF: {exc}")
+        return
+    date = pd.Timestamp(doc["date"]).strftime("%m/%d/%Y") if doc.get("date") else ""
+    meta = " · ".join(x for x in [builder, community, section, date, f'{int(doc.get("size_kb", 0)):,} KB'] if x)
+    title = re.sub(r"^\d{4}-\d{2}-\d{2}\s*-\s*", "", doc["title"])
+    st.markdown(
+        f'<div class="doc-card po"><span class="doc-pill">{doc["type"]}</span>'
+        f'<span class="doc-title">{title}</span><div class="doc-meta">{meta}</div></div>',
+        unsafe_allow_html=True,
+    )
+    st.download_button("⬇️  Download PDF", pdf, file_name=doc["path"].split("/")[-1], mime="application/pdf",
+                       type="primary", key="po_dl")
+    st.pdf(pdf, height=950)
+
+
 def show_customs_documents():
     if st.button("⬅  Back to Home", key="back_home_customs"):
         go_to_page("home")
@@ -1282,6 +1358,10 @@ def community_index():
             rows.append((name or community, "Pergolas", "pergolas", False, community, shown_builder))
     except Exception:
         pass
+    po_docs, _ = load_document_index(LAND_REPO, PO_INDEX_FILE)
+    for builder, community in sorted({(d["builder"], d["community"]) for d in po_docs}):
+        if community != "Master Contract":
+            rows.append((community, builder, "po", False, community, builder))
     for repo, division in ((CUSTOMS_REPO, "customs"), (LAND_REPO, "land")):
         docs, error = load_document_index(repo)
         seen = set()
@@ -1335,6 +1415,12 @@ def search_communities(query, limit=15):
 
 def jump_to_search_result(match):
     _, builder_name, division, archived, community, _ = match
+    if division == "po":
+        st.session_state["po_builder"] = builder_name
+        st.session_state[f"po_comm_{builder_name}"] = community
+        st.session_state["home_q"] = ""
+        set_page("production_other_builders")
+        return
     if division in ("customs", "land"):
         if division == "customs":
             job = community if builder_name == "Custom Homes" else f"{builder_name} › {community}"
@@ -1391,7 +1477,7 @@ def show_contracts_home():
                 )
                 for i, row in enumerate(hits):
                     shown_name, builder_name, division, archived, community, shown_builder = row
-                    division_name = {"pergolas": "Patios & Pergolas", "land": "Commercial"}.get(division, division.title())
+                    division_name = {"pergolas": "Patios & Pergolas", "land": "Commercial", "po": "Production · Lot POs"}.get(division, division.title())
                     label = f"**{shown_name}**  —  {shown_builder}  —  {division_name}" + ("  (archived)" if archived else "")
                     st.button(
                         label,
@@ -1530,6 +1616,9 @@ def show_builder_contracts(builder_name, division):
 
     active_data = get_division_data(all_data, builder_name, division, archived=False)
     render_contract_browser(active_data, f"{slug}_{division}_active", builder_name)
+
+    if builder_name == "Other Builders" and division == "production":
+        render_lot_po_browser()
 
     archive_set = ARCHIVED_COMMUNITIES.get((builder_name, division), set())
     if archive_set:
