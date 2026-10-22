@@ -1,1 +1,2 @@
 openpyxl>=3.0.14
+streamlit[pdf]>=1.49

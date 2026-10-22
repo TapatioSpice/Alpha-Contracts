@@ -1,8 +1,10 @@
 import json
+import re
 import streamlit as st
 import pandas as pd
 from pathlib import Path
 from io import BytesIO
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -16,6 +18,7 @@ st.markdown(
             --conc: #212121;  --conc2: #757575;
             --maint: #1B6E3A; --maint2: #1565C0;
             --cust: #00609E;  --cust2: #00AEEF;
+            --land: #8A4B12;  --land2: #DB6F20;
             --perg: #6D3F17;  --perg2: #A9744A;
             --home: #1B5E20;  --home2: #43A047;
             --arch: #616161;  --arch2: #9E9E9E;
@@ -42,6 +45,7 @@ st.markdown(
         .theme-concrete    { background: linear-gradient(120deg, var(--conc),  var(--conc2)); }
         .theme-maintenance { background: linear-gradient(120deg, var(--maint), var(--maint2)); }
         .theme-customs     { background: linear-gradient(120deg, var(--cust),  var(--cust2)); }
+        .theme-land        { background: linear-gradient(120deg, var(--land),  var(--land2)); }
         .theme-pergolas    { background: linear-gradient(120deg, var(--perg),  var(--perg2)); }
         .theme-archived    { background: linear-gradient(120deg, var(--arch),  var(--arch2)); }
 
@@ -63,6 +67,8 @@ st.markdown(
         .st-key-tile_concrete button    { border-bottom-color: var(--conc) !important; }
         .st-key-tile_maintenance button { border-bottom-color: var(--maint2) !important; }
         .st-key-tile_customs button     { border-bottom-color: var(--cust2) !important; }
+        .st-key-tile_land button        { border-bottom-color: var(--land2) !important; align-items: center !important; padding-bottom: 0 !important; }
+        .st-key-tile_land button p      { font-size: 1.9rem !important; }
         .st-key-tile_pergolas button    { border-bottom-color: var(--perg) !important; }
         .tile-note { text-align: center; opacity: 0.7; font-size: 0.95rem; margin: -0.3rem 0 1.3rem 0; }
 
@@ -131,6 +137,18 @@ st.markdown(
         [class*="st-key-hit_production"] button { border-left-color: var(--prod); }
         [class*="st-key-hit_concrete"] button   { border-left-color: var(--conc); }
         [class*="st-key-hit_pergolas"] button   { border-left-color: var(--perg); }
+        [class*="st-key-hit_customs"] button    { border-left-color: var(--cust2); }
+        [class*="st-key-hit_land"] button       { border-left-color: var(--land2); }
+
+        /* Contract document viewer (Customs / Commercial) */
+        .doc-card { border: 1px solid rgba(128,128,128,0.28); border-left: 8px solid var(--cust2); border-radius: 14px;
+                    padding: 0.8rem 1.2rem; margin: 0.6rem 0 0.9rem 0; background: rgba(128,128,128,0.05); }
+        .doc-card.land { border-left-color: var(--land2); }
+        .doc-card .doc-title { font-size: 1.08rem; font-weight: 700; }
+        .doc-card .doc-meta { opacity: 0.7; font-size: 0.9rem; margin-top: 0.15rem; }
+        .doc-pill { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700;
+                    background: rgba(0,174,239,0.15); color: #00609E; margin-right: 0.4rem; }
+        .doc-card.land .doc-pill { background: rgba(219,111,32,0.15); color: #8A4B12; }
 
         .builder-spacer { height: 0.7rem; }
         .archive-note { text-align: center; opacity: 0.7; font-size: 0.78rem; margin: 0.2rem 0 0.5rem 0; }
@@ -1044,6 +1062,143 @@ def show_maintenance_revenue():
     )
 
 
+CUSTOMS_REPO = "Customs_Contracts"
+LAND_REPO = "Land_Contracts"
+DOC_REPO_BRANCH = "main"
+LAND_GROUP_NAMES = {"_Builder to confirm": "Builder to confirm"}
+
+
+def private_repo_bytes(repo, path):
+    """Read one file from a private TapatioSpice repo (Customs_Contracts / Land_Contracts).
+
+    Streamlit Cloud needs a GITHUB_TOKEN secret with read access to the repo.
+    A sibling folder with the repo checked out is used first (local testing).
+    """
+    for base in (BASE_DIR / repo, BASE_DIR.parent / repo, BASE_DIR.parent / repo.lower()):
+        local = base / path
+        if local.is_file():
+            return local.read_bytes()
+    url = (
+        f"https://api.github.com/repos/{GITHUB_OWNER}/{repo}/contents/"
+        f"{quote(path)}?ref={DOC_REPO_BRANCH}"
+    )
+    headers = {"User-Agent": "Alpha-Contracts-Streamlit", "Accept": "application/vnd.github.raw"}
+    token = github_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    with urlopen(Request(url, headers=headers), timeout=60) as response:
+        return response.read()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_document_index(repo):
+    """Returns (documents, error). Each document: group, job, lot, title, type, date, path, size_kb."""
+    try:
+        data = json.loads(private_repo_bytes(repo, "index.json").decode("utf-8"))
+        return data.get("documents", []), ""
+    except HTTPError as exc:
+        if exc.code in (401, 403, 404):
+            return [], "no_access"
+        return [], f"HTTP {exc.code}"
+    except Exception as exc:  # network etc.
+        return [], str(exc)
+
+
+@st.cache_data(ttl=3600, max_entries=40, show_spinner=False)
+def load_document_pdf(repo, path):
+    return private_repo_bytes(repo, path)
+
+
+def doc_group_label(group):
+    return LAND_GROUP_NAMES.get(group, group)
+
+
+def render_document_access_help(repo, error):
+    if error == "no_access":
+        st.warning(
+            f"The app can't read the private **{repo}** repository yet. "
+            "Add a GitHub token in Streamlit: app **Settings → Secrets** → "
+            '`GITHUB_TOKEN = "github_pat_..."` (read-only *Contents* access to '
+            "Customs_Contracts and Land_Contracts), then reboot the app."
+        )
+    else:
+        st.error(f"Could not load the {repo} documents: {error}")
+
+
+def render_document_browser(repo, key, theme, two_level, group_label="Builder", job_label="Community"):
+    """Pick a job (and builder), then a document; the PDF shows right on the page."""
+    docs, error = load_document_index(repo)
+    if error:
+        render_document_access_help(repo, error)
+        return
+    if not docs:
+        st.info("No contracts loaded yet.")
+        return
+
+    def job_name(d):
+        return d["job"] if not two_level and d["group"] == "Custom Homes" else (
+            d["job"] if two_level else f'{d["group"]} › {d["job"]}'
+        )
+
+    groups = sorted({d["group"] for d in docs}, key=lambda g: (g.startswith("_"), g.lower()))
+    pick_cols = st.columns([1.2, 1.6] if two_level else [1.5, 2], gap="medium")
+    if two_level:
+        with pick_cols[0]:
+            group = st.selectbox(f"1. Select {group_label}", groups, format_func=doc_group_label, key=f"{key}_group")
+        pool = [d for d in docs if d["group"] == group]
+        jobs = sort_display_values(sorted({d["job"] for d in pool}))
+        with pick_cols[1]:
+            job = st.selectbox(f"2. Select {job_label}", jobs, key=f"{key}_job")
+        job_docs = [d for d in pool if d["job"] == job]
+        step = 3
+    else:
+        jobs = sorted({job_name(d) for d in docs}, key=lambda j: j.lower())
+        with pick_cols[0]:
+            job = st.selectbox(f"1. Select {job_label}", jobs, key=f"{key}_job",
+                               help="Type to search by customer or builder name")
+        job_docs = [d for d in docs if job_name(d) == job]
+        step = 2
+
+    type_order = {"Contract": 0, "Proposal": 1, "Change Order": 2, "Purchase Order": 3, "Payment Schedule": 4}
+    job_docs.sort(key=lambda d: d.get("date", ""), reverse=True)  # newest first within each type
+    job_docs.sort(key=lambda d: (d.get("lot", ""), type_order.get(d["type"], 9)))
+
+    def clean_title(title):
+        return re.sub(r"^\d{4}-\d{2}-\d{2}\s*-\s*", "", title)
+
+    def doc_label(i):
+        d = job_docs[i]
+        lot = f'{d["lot"]} · ' if d.get("lot") else ""
+        date = f' · {pd.Timestamp(d["date"]).strftime("%m/%d/%Y")}' if d.get("date") else ""
+        return f'{lot}{d["type"]} — {clean_title(d["title"])}{date}'
+
+    target = pick_cols[1] if not two_level else st.container()
+    with target:
+        pick = st.selectbox(f"{step}. Select Document", list(range(len(job_docs))), format_func=doc_label,
+                            key=f"{key}_doc_{job}")
+    st.caption(f'{len(job_docs)} document{"s" if len(job_docs) != 1 else ""} for **{job}**')
+
+    doc = job_docs[pick]
+    try:
+        with st.spinner("Loading PDF…"):
+            pdf = load_document_pdf(repo, doc["path"])
+    except Exception as exc:
+        st.error(f"Could not open this PDF: {exc}")
+        return
+
+    date = pd.Timestamp(doc["date"]).strftime("%m/%d/%Y") if doc.get("date") else ""
+    meta = " · ".join(x for x in [doc_group_label(doc["group"]), doc["job"], doc.get("lot", ""), date,
+                                  f'{int(doc.get("size_kb", 0)):,} KB'] if x)
+    st.markdown(
+        f'<div class="doc-card {theme}"><span class="doc-pill">{doc["type"]}</span>'
+        f'<span class="doc-title">{clean_title(doc["title"])}</span><div class="doc-meta">{meta}</div></div>',
+        unsafe_allow_html=True,
+    )
+    st.download_button("⬇️  Download PDF", pdf, file_name=doc["path"].split("/")[-1], mime="application/pdf",
+                       type="primary", key=f"{key}_dl")
+    st.pdf(pdf, height=950)
+
+
 def show_customs_documents():
     if st.button("⬅  Back to Home", key="back_home_customs"):
         go_to_page("home")
@@ -1052,18 +1207,37 @@ def show_customs_documents():
         """
         <div class="contracts-hero theme-customs">
             <div class="section-kicker">Customs</div>
-            <h1>Customs Documents</h1>
+            <h1>Customs Contracts</h1>
+            <p>Signed proposals, contracts, change orders & payment schedules</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.link_button(
-        "Open Customs Documents",
-        CUSTOMS_SHARED_URL,
-        type="primary",
-        use_container_width=True,
+    render_document_browser(CUSTOMS_REPO, "customs_docs", "", two_level=False, job_label="Customer / Job")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.link_button("📁 Other Customs documents (plans, waivers, photos) on OneDrive", CUSTOMS_SHARED_URL,
+                   use_container_width=True)
+
+
+def show_land_documents():
+    if st.button("⬅  Back to Home", key="back_home_land"):
+        go_to_page("home")
+
+    st.markdown(
+        """
+        <div class="contracts-hero theme-land">
+            <div class="section-kicker">Commercial</div>
+            <h1>Commercial Contracts</h1>
+            <p>Streetscapes, model complexes &amp; common areas</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
+
+    render_document_browser(LAND_REPO, "land_docs", "land", two_level=True, group_label="Builder",
+                            job_label="Community / Project")
 
 
 DIVISION_TILES = [
@@ -1071,7 +1245,8 @@ DIVISION_TILES = [
     ("concrete", "Concrete", "Foundations, flatwork & driveways", "concrete_builders"),
     ("pergolas", "Patios & Pergolas", "Patio cover & pergola pricing", "pergolas"),
     ("maintenance", "Maintenance", "Monthly revenue & contracts", "maintenance_home"),
-    ("customs", "Customs", "Custom job documents", "customs_documents"),
+    ("customs", "Customs", "Custom job contracts", "customs_documents"),
+    ("land", "🏢 Commercial", "Streetscapes, models & common areas", "land_documents"),
 ]
 
 
@@ -1107,6 +1282,15 @@ def community_index():
             rows.append((name or community, "Pergolas", "pergolas", False, community, shown_builder))
     except Exception:
         pass
+    for repo, division in ((CUSTOMS_REPO, "customs"), (LAND_REPO, "land")):
+        docs, error = load_document_index(repo)
+        seen = set()
+        for d in docs:
+            if (d["group"], d["job"]) in seen:
+                continue
+            seen.add((d["group"], d["job"]))
+            group = "" if d["group"] == "Custom Homes" else doc_group_label(d["group"])
+            rows.append((d["job"], d["group"], division, False, d["job"], group or "Custom Home"))
     return rows
 
 
@@ -1151,6 +1335,18 @@ def search_communities(query, limit=15):
 
 def jump_to_search_result(match):
     _, builder_name, division, archived, community, _ = match
+    if division in ("customs", "land"):
+        if division == "customs":
+            job = community if builder_name == "Custom Homes" else f"{builder_name} › {community}"
+            st.session_state["customs_docs_job"] = job
+            page = "customs_documents"
+        else:
+            st.session_state["land_docs_group"] = builder_name
+            st.session_state["land_docs_job"] = community
+            page = "land_documents"
+        st.session_state["home_q"] = ""
+        set_page(page)
+        return
     if division == "pergolas":
         prefix, page = "pergolas", "pergolas"
     else:
@@ -1180,7 +1376,7 @@ def show_contracts_home():
     with st.container(key="home_search_box"):
         query = st.text_input(
             "🔎 Find a community",
-            placeholder="Type a community name (e.g. Aries, LLV, Esplanade, Skyeview) and press Enter",
+            placeholder="Type a community or customer (e.g. Aries, LLV, Esplanade, Kim, Bruner) and press Enter",
             key="home_q",
         )
         if query.strip():
@@ -1195,7 +1391,7 @@ def show_contracts_home():
                 )
                 for i, row in enumerate(hits):
                     shown_name, builder_name, division, archived, community, shown_builder = row
-                    division_name = "Patios & Pergolas" if division == "pergolas" else division.title()
+                    division_name = {"pergolas": "Patios & Pergolas", "land": "Commercial"}.get(division, division.title())
                     label = f"**{shown_name}**  —  {shown_builder}  —  {division_name}" + ("  (archived)" if archived else "")
                     st.button(
                         label,
@@ -1215,8 +1411,8 @@ def show_contracts_home():
     row1 = st.columns(3, gap="large")
     for column, item in zip(row1, DIVISION_TILES[:3]):
         tile(column, item)
-    row2 = st.columns([0.5, 1, 1, 0.5], gap="large")
-    for column, item in zip(row2[1:3], DIVISION_TILES[3:]):
+    row2 = st.columns(3, gap="large")
+    for column, item in zip(row2, DIVISION_TILES[3:]):
         tile(column, item)
 
 
@@ -1411,6 +1607,8 @@ elif page == "maintenance_revenue":
     show_maintenance_revenue()
 elif page == "customs_documents":
     show_customs_documents()
+elif page == "land_documents":
+    show_land_documents()
 elif page == "pergolas":
     show_pergolas()
 else:
