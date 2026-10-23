@@ -69,6 +69,9 @@ st.markdown(
         .st-key-tile_customs button     { border-bottom-color: var(--cust2) !important; }
         .st-key-tile_land button        { border-bottom-color: var(--land2) !important; align-items: center !important; padding-bottom: 0 !important; }
         .st-key-tile_land button p      { font-size: 1.9rem !important; }
+        .st-key-tile_billing button     { border-bottom-color: #6A1B9A !important; align-items: center !important; padding-bottom: 0 !important; }
+        .st-key-tile_billing button p   { font-size: 1.9rem !important; }
+        .theme-billing     { background: linear-gradient(120deg, #4A148C, #8E24AA); }
         .st-key-tile_pergolas button    { border-bottom-color: var(--perg) !important; }
         .tile-note { text-align: center; opacity: 0.7; font-size: 0.95rem; margin: -0.3rem 0 1.3rem 0; }
 
@@ -144,9 +147,9 @@ st.markdown(
         .doc-card { border: 1px solid rgba(128,128,128,0.28); border-left: 8px solid var(--cust2); border-radius: 14px;
                     padding: 0.8rem 1.2rem; margin: 0.6rem 0 0.9rem 0; background: rgba(128,128,128,0.05); }
         .doc-card.land { border-left-color: var(--land2); }
-        .doc-card.po { border-left-color: var(--prod); }
-        .doc-card.po .doc-pill { background: rgba(46,125,50,0.15); color: #1B5E20; }
-        [class*="st-key-hit_po"] button         { border-left-color: var(--prod2); }
+        .doc-card.po { border-left-color: #8E24AA; }
+        .doc-card.po .doc-pill { background: rgba(142,36,170,0.13); color: #4A148C; }
+        [class*="st-key-hit_po"] button         { border-left-color: #8E24AA; }
         .doc-card .doc-title { font-size: 1.08rem; font-weight: 700; }
         .doc-card .doc-meta { opacity: 0.7; font-size: 0.9rem; margin-top: 0.15rem; }
         .doc-pill { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700;
@@ -1203,17 +1206,18 @@ def render_document_browser(repo, key, theme, two_level, group_label="Builder", 
 
 
 PO_INDEX_FILE = "production_index.json"  # Contour, Pinnacle & Signature lot POs (stored in Land_Contracts)
-PO_BUILDERS_NOTE = "Contour, Pinnacle & Signature Homes — one folder per lot, like the OneDrive CONTRACTS folder"
+PO_BUILDERS_NOTE = "Contour, Pinnacle &amp; Signature Homes — pick the lot to see every PO, CO and contract"
 
 
-def render_lot_po_browser():
+def show_billing_pos():
     """Builder → Community → Lot → PO, for the PO builders (Contour, Pinnacle, Signature)."""
-    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("⬅  Back to Home", key="back_home_billing"):
+        go_to_page("home")
     st.markdown(
         f"""
-        <div class="contracts-hero theme-production">
-            <div class="section-kicker">Production · PO Builders</div>
-            <h1>Lot POs &amp; Contracts</h1>
+        <div class="contracts-hero theme-billing">
+            <div class="section-kicker">Billing POs</div>
+            <h1>Billing POs</h1>
             <p>{PO_BUILDERS_NOTE}</p>
         </div>
         """,
@@ -1323,6 +1327,7 @@ DIVISION_TILES = [
     ("maintenance", "Maintenance", "Monthly revenue & contracts", "maintenance_home"),
     ("customs", "Customs", "Custom job contracts", "customs_documents"),
     ("land", "🏢 Commercial", "Streetscapes, models & common areas", "land_documents"),
+    ("billing", "🧾 Billing POs", "Contour, Pinnacle & Signature lot POs", "billing_pos"),
 ]
 
 
@@ -1419,7 +1424,7 @@ def jump_to_search_result(match):
         st.session_state["po_builder"] = builder_name
         st.session_state[f"po_comm_{builder_name}"] = community
         st.session_state["home_q"] = ""
-        set_page("production_other_builders")
+        set_page("billing_pos")
         return
     if division in ("customs", "land"):
         if division == "customs":
@@ -1477,7 +1482,7 @@ def show_contracts_home():
                 )
                 for i, row in enumerate(hits):
                     shown_name, builder_name, division, archived, community, shown_builder = row
-                    division_name = {"pergolas": "Patios & Pergolas", "land": "Commercial", "po": "Production · Lot POs"}.get(division, division.title())
+                    division_name = {"pergolas": "Patios & Pergolas", "land": "Commercial", "po": "Billing POs"}.get(division, division.title())
                     label = f"**{shown_name}**  —  {shown_builder}  —  {division_name}" + ("  (archived)" if archived else "")
                     st.button(
                         label,
@@ -1498,7 +1503,10 @@ def show_contracts_home():
     for column, item in zip(row1, DIVISION_TILES[:3]):
         tile(column, item)
     row2 = st.columns(3, gap="large")
-    for column, item in zip(row2, DIVISION_TILES[3:]):
+    for column, item in zip(row2, DIVISION_TILES[3:6]):
+        tile(column, item)
+    row3 = st.columns(3, gap="large")
+    for column, item in zip(row3[1:], DIVISION_TILES[6:]):
         tile(column, item)
 
 
@@ -1618,7 +1626,10 @@ def show_builder_contracts(builder_name, division):
     render_contract_browser(active_data, f"{slug}_{division}_active", builder_name)
 
     if builder_name == "Other Builders" and division == "production":
-        render_lot_po_browser()
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🧾  Contour / Pinnacle / Signature lot POs → Billing POs", key="goto_billing_pos",
+                     use_container_width=True):
+            go_to_page("billing_pos")
 
     archive_set = ARCHIVED_COMMUNITIES.get((builder_name, division), set())
     if archive_set:
@@ -1696,6 +1707,8 @@ elif page == "maintenance_revenue":
     show_maintenance_revenue()
 elif page == "customs_documents":
     show_customs_documents()
+elif page == "billing_pos":
+    show_billing_pos()
 elif page == "land_documents":
     show_land_documents()
 elif page == "pergolas":
