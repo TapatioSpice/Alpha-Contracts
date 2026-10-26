@@ -1231,21 +1231,28 @@ def show_billing_pos():
         st.info("No lot POs loaded yet.")
         return
 
-    cols = st.columns([1, 1.3, 1.3], gap="medium")
     builders = sorted({d["builder"] for d in docs})
-    with cols[0]:
-        builder = st.selectbox("1. Select Builder", builders, key="po_builder")
+    builder = st.selectbox("1. Select Builder", builders, index=None, placeholder="Choose a builder",
+                           key="po_builder")
+    if builder is None:
+        return
+
     pool = [d for d in docs if d["builder"] == builder]
     communities = sorted({d["community"] for d in pool}, key=lambda c: (c == "Master Contract", c.lower()))
-    with cols[1]:
-        community = st.selectbox("2. Select Community", communities, key=f"po_comm_{builder}")
+    community = st.selectbox("2. Select Community", communities, index=None, placeholder="Choose a community",
+                             key=f"po_comm_{builder}")
+    if community is None:
+        return
+
     pool = [d for d in pool if d["community"] == community]
     sections = sorted({(tuple(d["section_order"]), d["section"]) for d in pool})
     section_names = [name for _, name in sections]
     counts = {name: sum(1 for d in pool if d["section"] == name) for name in section_names}
-    with cols[2]:
-        section = st.selectbox("3. Select Lot", section_names, key=f"po_lot_{builder}_{community}",
-                               format_func=lambda n: f"{n}  ({counts[n]})")
+    section = st.selectbox("3. Select Lot", section_names, index=None, placeholder="Choose a lot",
+                           key=f"po_lot_{builder}_{community}", format_func=lambda n: f"{n}  ({counts[n]})")
+    if section is None:
+        return
+
     lot_docs = sorted([d for d in pool if d["section"] == section], key=lambda d: d.get("date", ""), reverse=True)
 
     def label(i):
@@ -1255,10 +1262,12 @@ def show_billing_pos():
         date = f' · {pd.Timestamp(d["date"]).strftime("%m/%d/%Y")}' if d.get("date") else ""
         return f'{d["type"]} — {title}{date}'
 
-    pick = st.selectbox("4. Select PO / Document", list(range(len(lot_docs))), format_func=label,
+    pick = st.selectbox("4. Select PO / Document", list(range(len(lot_docs))), index=None,
+                        placeholder="Choose a PO", format_func=label,
                         key=f"po_doc_{builder}_{community}_{section}")
-    st.caption(f'{len(lot_docs)} document{"s" if len(lot_docs) != 1 else ""} for **{community} · {section}** '
-               f'· {len(pool)} total for {community}')
+    st.caption(f'{len(lot_docs)} document{"s" if len(lot_docs) != 1 else ""} for **{community} · {section}**')
+    if pick is None:
+        return
     doc = lot_docs[pick]
     try:
         with st.spinner("Loading PDF…"):
