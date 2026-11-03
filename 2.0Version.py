@@ -1110,9 +1110,55 @@ def load_document_index(repo, index_file="index.json"):
         return [], str(exc)
 
 
-@st.cache_data(ttl=3600, max_entries=40, show_spinner=False)
+@st.cache_data(ttl=3600, max_entries=15, show_spinner=False)
 def load_document_pdf(repo, path):
     return private_repo_bytes(repo, path)
+
+
+# Big PDFs (scanned MSAs, plan sets) time out in the st.pdf viewer on Streamlit Cloud,
+# so anything over this size is shown as page images instead.
+PDF_VIEWER_MAX_BYTES = 3 * 1024 * 1024
+
+
+@st.cache_data(ttl=3600, max_entries=200, show_spinner=False)
+def pdf_page_count(path, _pdf):
+    import pypdfium2 as pdfium
+    return len(pdfium.PdfDocument(_pdf))
+
+
+@st.cache_data(ttl=3600, max_entries=200, show_spinner=False)
+def pdf_page_png(path, _pdf, page_number):
+    import pypdfium2 as pdfium
+    doc = pdfium.PdfDocument(_pdf)
+    image = doc[page_number - 1].render(scale=1.6).to_pil()
+    out = BytesIO()
+    image.convert("RGB").save(out, format="JPEG", quality=80)
+    return out.getvalue()
+
+
+def show_pdf(pdf, path, key):
+    """Small PDFs use the built-in viewer; big ones are shown one page at a time as images."""
+    if len(pdf) <= PDF_VIEWER_MAX_BYTES:
+        st.pdf(pdf, height=950)
+        return
+    try:
+        pages = pdf_page_count(path, pdf)
+    except Exception as exc:
+        st.warning(f"This PDF is too big to preview here ({len(pdf) // 1024:,} KB). Use Download PDF. ({exc})")
+        return
+    state_key = f"{key}_page_{path}"
+    page = st.session_state.get(state_key, 1)
+    page = min(max(page, 1), pages)
+    prev_col, mid_col, next_col = st.columns([1, 3, 1])
+    if prev_col.button("◀ Previous", key=f"{key}_prev", use_container_width=True, disabled=page <= 1):
+        page -= 1
+    if next_col.button("Next ▶", key=f"{key}_next", use_container_width=True, disabled=page >= pages):
+        page += 1
+    st.session_state[state_key] = page
+    mid_col.markdown(f"<div style='text-align:center;padding-top:.45rem'><b>Page {page} of {pages}</b></div>",
+                     unsafe_allow_html=True)
+    with st.spinner("Loading page…"):
+        st.image(pdf_page_png(path, pdf, page), width="stretch")
 
 
 def doc_group_label(group):
@@ -1202,7 +1248,7 @@ def render_document_browser(repo, key, theme, two_level, group_label="Builder", 
     )
     st.download_button("⬇️  Download PDF", pdf, file_name=doc["path"].split("/")[-1], mime="application/pdf",
                        type="primary", key=f"{key}_dl")
-    st.pdf(pdf, height=950)
+    show_pdf(pdf, doc["path"], key)
 
 
 PO_INDEX_FILE = "production_index.json"  # Contour, Pinnacle & Signature lot POs (stored in Land_Contracts)
@@ -1285,7 +1331,7 @@ def show_billing_pos():
     )
     st.download_button("⬇️  Download PDF", pdf, file_name=doc["path"].split("/")[-1], mime="application/pdf",
                        type="primary", key="po_dl")
-    st.pdf(pdf, height=950)
+    show_pdf(pdf, doc["path"], "po")
 
 
 def show_customs_documents():
