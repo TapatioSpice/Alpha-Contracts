@@ -1115,8 +1115,7 @@ def load_document_pdf(repo, path):
     return private_repo_bytes(repo, path)
 
 
-# Big PDFs (scanned MSAs, plan sets) time out in the st.pdf viewer on Streamlit Cloud,
-# so anything over this size is shown as page images instead.
+# The st.pdf viewer's media requests fail (500) on Streamlit Cloud, so every PDF is shown as page images.
 PDF_VIEWER_MAX_BYTES = 3 * 1024 * 1024
 
 
@@ -1137,10 +1136,7 @@ def pdf_page_png(path, _pdf, page_number):
 
 
 def show_pdf(pdf, path, key):
-    """Small PDFs use the built-in viewer; big ones are shown one page at a time as images."""
-    if len(pdf) <= PDF_VIEWER_MAX_BYTES:
-        st.pdf(pdf, height=950)
-        return
+    """Show a PDF one page at a time as images (inline, no media endpoint)."""
     try:
         pages = pdf_page_count(path, pdf)
     except Exception as exc:
