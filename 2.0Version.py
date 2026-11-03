@@ -1158,7 +1158,19 @@ def show_pdf(pdf, path, key):
     mid_col.markdown(f"<div style='text-align:center;padding-top:.45rem'><b>Page {page} of {pages}</b></div>",
                      unsafe_allow_html=True)
     with st.spinner("Loading page…"):
-        st.image(pdf_page_png(path, pdf, page), width="stretch")
+        import base64
+        png = base64.b64encode(pdf_page_png(path, pdf, page)).decode()
+    # Inline the page so it doesn't depend on the app's media-file endpoint.
+    st.markdown(f'<img src="data:image/jpeg;base64,{png}" style="width:100%;border:1px solid #333;'
+                f'border-radius:6px" alt="Page {page}">', unsafe_allow_html=True)
+
+
+def pdf_download_button(pdf, path, key):
+    """Download button that only sends the file when it's clicked (keeps page loads light)."""
+    def file_bytes():
+        return pdf
+    st.download_button("⬇️  Download PDF", file_bytes, file_name=path.split("/")[-1], mime="application/pdf",
+                       type="primary", key=key)
 
 
 def doc_group_label(group):
@@ -1246,8 +1258,7 @@ def render_document_browser(repo, key, theme, two_level, group_label="Builder", 
         f'<span class="doc-title">{clean_title(doc["title"])}</span><div class="doc-meta">{meta}</div></div>',
         unsafe_allow_html=True,
     )
-    st.download_button("⬇️  Download PDF", pdf, file_name=doc["path"].split("/")[-1], mime="application/pdf",
-                       type="primary", key=f"{key}_dl")
+    pdf_download_button(pdf, doc["path"], f"{key}_dl")
     show_pdf(pdf, doc["path"], key)
 
 
@@ -1329,8 +1340,7 @@ def show_billing_pos():
         f'<span class="doc-title">{title}</span><div class="doc-meta">{meta}</div></div>',
         unsafe_allow_html=True,
     )
-    st.download_button("⬇️  Download PDF", pdf, file_name=doc["path"].split("/")[-1], mime="application/pdf",
-                       type="primary", key="po_dl")
+    pdf_download_button(pdf, doc["path"], "po_dl")
     show_pdf(pdf, doc["path"], "po")
 
 
