@@ -1142,6 +1142,13 @@ def show_pdf(pdf, path, key):
     except Exception as exc:
         st.warning(f"This PDF is too big to preview here ({len(pdf) // 1024:,} KB). Use Download PDF. ({exc})")
         return
+    if pages <= 4:
+        import base64
+        for n in range(1, pages + 1):
+            png = base64.b64encode(pdf_page_png(path, pdf, n)).decode()
+            st.markdown(f'<img src="data:image/jpeg;base64,{png}" style="width:100%;border:1px solid #333;'
+                        f'border-radius:6px;margin-bottom:10px" alt="Page {n}">', unsafe_allow_html=True)
+        return
     state_key = f"{key}_page_{path}"
     page = st.session_state.get(state_key, 1)
     page = min(max(page, 1), pages)
