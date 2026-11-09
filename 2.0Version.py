@@ -14,6 +14,7 @@ st.set_page_config(page_title="Contracts", page_icon="📄", layout="wide")
 def require_password():
     import hashlib
     import hmac
+    import streamlit.components.v1 as components
 
     expected = "ade340a59c95b463d49c3d7e8881a792adb78d81be66ad51afc86a7ff15be6c5"
     try:
@@ -23,22 +24,52 @@ def require_password():
     if override:
         expected = hashlib.sha256(str(override).encode()).hexdigest()
 
+    cookie_name = "alpha_contracts_auth"
+    remember_token = hashlib.sha256((expected + "|remember").encode()).hexdigest()
+
     if st.session_state.get("authenticated"):
+        if st.session_state.pop("set_auth_cookie", False):
+            components.html(
+                f"""<script>
+                const c = "{cookie_name}={remember_token}; max-age=2592000; path=/; SameSite=Lax; Secure";
+                try {{ window.parent.document.cookie = c; }} catch (e) {{}}
+                document.cookie = c;
+                </script>""",
+                height=0,
+            )
         return
 
-    st.markdown("<div style='max-width:380px;margin:12vh auto 0 auto'>", unsafe_allow_html=True)
-    st.markdown("### Alpha Landscapes · Contracts")
-    with st.form("login"):
-        entered = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Enter")
-    if submitted:
-        digest = hashlib.sha256(entered.strip().encode()).hexdigest()
-        if hmac.compare_digest(digest, expected):
-            st.session_state["authenticated"] = True
-            st.rerun()
-        else:
-            st.error("Incorrect password.")
-    st.markdown("</div>", unsafe_allow_html=True)
+    try:
+        saved = st.context.cookies.get(cookie_name)
+    except Exception:
+        saved = None
+    if isinstance(saved, str) and hmac.compare_digest(saved, remember_token):
+        st.session_state["authenticated"] = True
+        return
+
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stForm"] { border-radius: 12px; padding: 1.2rem 1.2rem 0.8rem 1.2rem; }
+        .login-title { text-align: center; font-size: 1.15rem; font-weight: 600; margin: 18vh 0 0.6rem 0; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    left, mid, right = st.columns([1.6, 1, 1.6])
+    with mid:
+        st.markdown("<div class='login-title'>Alpha Landscapes · Contracts</div>", unsafe_allow_html=True)
+        with st.form("login"):
+            entered = st.text_input("Password", type="password", label_visibility="collapsed", placeholder="Password")
+            submitted = st.form_submit_button("Enter", use_container_width=True)
+        if submitted:
+            digest = hashlib.sha256(entered.strip().encode()).hexdigest()
+            if hmac.compare_digest(digest, expected):
+                st.session_state["authenticated"] = True
+                st.session_state["set_auth_cookie"] = True
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
     st.stop()
 
 
