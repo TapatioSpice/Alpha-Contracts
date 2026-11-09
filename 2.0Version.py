@@ -51,12 +51,12 @@ def require_password():
         """
         <style>
         div[data-testid="stForm"] { border-radius: 12px; padding: 1.2rem 1.2rem 0.8rem 1.2rem; }
-        .login-title { text-align: center; font-size: 1.15rem; font-weight: 600; margin: 18vh 0 0.6rem 0; }
+        .login-title { text-align: center; white-space: nowrap; font-size: 1.05rem; font-weight: 600; margin: 18vh 0 0.6rem 0; }
         </style>
         """,
         unsafe_allow_html=True,
     )
-    left, mid, right = st.columns([1.6, 1, 1.6])
+    left, mid, right = st.columns([1.3, 1, 1.3])
     with mid:
         st.markdown("<div class='login-title'>Alpha Landscapes · Contracts</div>", unsafe_allow_html=True)
         with st.form("login"):
