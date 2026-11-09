@@ -28,6 +28,11 @@ def require_password():
     remember_token = hashlib.sha256((expected + "|remember").encode()).hexdigest()
 
     if st.session_state.get("authenticated"):
+        try:
+            if st.query_params.get("key") != remember_token[:24]:
+                st.query_params["key"] = remember_token[:24]
+        except Exception:
+            pass
         if st.session_state.pop("set_auth_cookie", False):
             components.html(
                 f"""<script>
@@ -45,6 +50,15 @@ def require_password():
         saved = None
     if isinstance(saved, str) and hmac.compare_digest(saved, remember_token):
         st.session_state["authenticated"] = True
+        return
+
+    try:
+        url_key = st.query_params.get("key")
+    except Exception:
+        url_key = None
+    if isinstance(url_key, str) and hmac.compare_digest(url_key, remember_token[:24]):
+        st.session_state["authenticated"] = True
+        st.session_state["set_auth_cookie"] = True
         return
 
     st.markdown(
