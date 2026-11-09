@@ -10,6 +10,40 @@ from urllib.error import HTTPError, URLError
 
 st.set_page_config(page_title="Contracts", page_icon="📄", layout="wide")
 
+
+def require_password():
+    import hashlib
+    import hmac
+
+    expected = "ade340a59c95b463d49c3d7e8881a792adb78d81be66ad51afc86a7ff15be6c5"
+    try:
+        override = st.secrets.get("APP_PASSWORD")
+    except Exception:
+        override = None
+    if override:
+        expected = hashlib.sha256(str(override).encode()).hexdigest()
+
+    if st.session_state.get("authenticated"):
+        return
+
+    st.markdown("<div style='max-width:380px;margin:12vh auto 0 auto'>", unsafe_allow_html=True)
+    st.markdown("### Alpha Landscapes · Contracts")
+    with st.form("login"):
+        entered = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Enter")
+    if submitted:
+        digest = hashlib.sha256(entered.strip().encode()).hexdigest()
+        if hmac.compare_digest(digest, expected):
+            st.session_state["authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()
+
+
+require_password()
+
 st.markdown(
     """
     <style>
